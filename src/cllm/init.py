@@ -234,7 +234,7 @@ def copy_template(
     # ADR-0023: Merge template with config overrides if provided
     if config_overrides:
         # Load template content
-        with open(source_file, "r") as f:
+        with open(source_file) as f:
             template_config = yaml.safe_load(f) or {}
 
         # Merge overrides (overrides take precedence)

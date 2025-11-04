@@ -339,7 +339,7 @@ def load_system_prompt_from_file(file_path: str) -> str:
             sys.exit(1)
 
         # Read file with UTF-8 encoding
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             content = f.read().strip()
 
         if not content:
@@ -1025,7 +1025,7 @@ def main():
 
     try:
         template_context = build_template_context(cli_vars, config_vars, env_vars)
-    except TemplateError as e:
+    except TemplateError as e:  # noqa: F823
         print(f"Variable error: {e}", file=sys.stderr)
         sys.exit(1)
 
