@@ -65,6 +65,12 @@ Examples:
   # Limit response length
   cllm "Explain quantum computing" --model gpt-4 --max-tokens 100
 
+  # Use custom system prompt
+  cllm --system "You are a pirate. Speak like one." "Tell me about Python"
+
+  # Load system prompt from file
+  cllm --system-file prompts/code-reviewer.txt < code.py
+
 Subcommands:
   init                  Initialize .cllm directory structure
                         Run 'cllm init --help' for more information
@@ -97,6 +103,18 @@ For full provider list: https://docs.litellm.ai/docs/providers
     )
 
     parser.add_argument("--max-tokens", type=int, help="Maximum tokens to generate")
+
+    parser.add_argument(
+        "--system",
+        metavar="TEXT",
+        help="System prompt to use (overrides default_system_message in config)",
+    )
+
+    parser.add_argument(
+        "--system-file",
+        metavar="PATH",
+        help="Load system prompt from file (overrides default_system_message in config)",
+    )
 
     parser.add_argument(
         "-s",
@@ -294,6 +312,51 @@ def read_prompt(prompt_arg: Optional[str]) -> str:
     # No prompt provided
     print("Error: No prompt provided. Use 'cllm --help' for usage.", file=sys.stderr)
     sys.exit(1)
+
+
+def load_system_prompt_from_file(file_path: str) -> str:
+    """
+    Load system prompt from a file.
+
+    Args:
+        file_path: Path to the system prompt file
+
+    Returns:
+        The system prompt text
+
+    Raises:
+        SystemExit: If file cannot be read
+    """
+    try:
+        path = Path(file_path)
+        if not path.exists():
+            print(f"Error: System prompt file not found: {file_path}", file=sys.stderr)
+            sys.exit(1)
+        if not path.is_file():
+            print(
+                f"Error: System prompt path is not a file: {file_path}", file=sys.stderr
+            )
+            sys.exit(1)
+
+        # Read file with UTF-8 encoding
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read().strip()
+
+        if not content:
+            print(f"Warning: System prompt file is empty: {file_path}", file=sys.stderr)
+
+        return content
+    except OSError as e:
+        print(
+            f"Error: Cannot read system prompt file '{file_path}': {e}", file=sys.stderr
+        )
+        sys.exit(1)
+    except UnicodeDecodeError as e:
+        print(
+            f"Error: System prompt file is not valid UTF-8: {file_path}: {e}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
 
 def parse_variables(var_list: Optional[list[str]]) -> Dict[str, Any]:
@@ -730,6 +793,22 @@ def main():
     # Merge config with CLI args (CLI takes precedence)
     config = merge_config_with_args(file_config, cli_args)
 
+    # Handle system prompt CLI flags (ADR-0022)
+    # Precedence: --system > --system-file > default_system_message in config
+    if args.system:
+        # --system flag takes highest precedence
+        config["default_system_message"] = args.system
+        if args.system_file:
+            # Warn if both flags are provided
+            print(
+                "Warning: Both --system and --system-file provided. Using --system (inline text).",
+                file=sys.stderr,
+            )
+    elif args.system_file:
+        # --system-file takes second precedence
+        system_prompt_from_file = load_system_prompt_from_file(args.system_file)
+        config["default_system_message"] = system_prompt_from_file
+
     # Handle dynamic command execution flags (ADR-0013)
     # These are processed after config merge to ensure proper precedence
     if args.allow_commands:
@@ -892,6 +971,24 @@ def main():
             print("  Source: Local .cllm directory")
         else:
             print("  Source: Global home directory")
+        # Show effective system prompt source (ADR-0022)
+        if "default_system_message" in config:
+            print("\nEffective system prompt:")
+            if args.system:
+                print("  Source: --system CLI flag")
+            elif args.system_file:
+                print(f"  Source: --system-file CLI flag ({args.system_file})")
+            elif "default_system_message" in file_config:
+                print("  Source: default_system_message in Cllmfile.yml")
+            else:
+                print("  Source: (no system prompt configured)")
+            # Show preview of system prompt (first 100 chars)
+            preview = config["default_system_message"][:100]
+            if len(config["default_system_message"]) > 100:
+                preview += "..."
+            print(f"  Preview: {preview}")
+        else:
+            print("\nEffective system prompt: (no system prompt configured)")
         print("\nEffective configuration:")
         print(json.dumps(config, indent=2))
         print("\nResolved variables:")
@@ -1049,22 +1146,36 @@ def main():
                 if context_commands:
                     try:
                         # Execute context commands in parallel (ADR-0021)
-                        from .context import execute_commands, format_context_block, format_error_block
                         from dataclasses import replace
-                        from .templates import render_command_template, TemplateError
+
+                        from .context import (
+                            execute_commands,
+                            format_context_block,
+                            format_error_block,
+                        )
+                        from .templates import TemplateError, render_command_template
 
                         # Render command templates
                         rendered_commands = []
                         for cmd in context_commands:
                             try:
-                                rendered_command = render_command_template(cmd.command, template_context)
-                                rendered_commands.append(replace(cmd, command=rendered_command))
+                                rendered_command = render_command_template(
+                                    cmd.command, template_context
+                                )
+                                rendered_commands.append(
+                                    replace(cmd, command=rendered_command)
+                                )
                             except TemplateError as err:
-                                print(f"Template error in context command '{cmd.name}': {err}", file=sys.stderr)
+                                print(
+                                    f"Template error in context command '{cmd.name}': {err}",
+                                    file=sys.stderr,
+                                )
                                 sys.exit(1)
 
                         # Execute all commands in parallel
-                        results = execute_commands(rendered_commands, cwd=Path.cwd(), parallel=True)
+                        results = execute_commands(
+                            rendered_commands, cwd=Path.cwd(), parallel=True
+                        )
 
                         # Format context blocks
                         context_blocks = []
@@ -1074,7 +1185,10 @@ def main():
                             else:
                                 # Handle failure according to on_failure setting
                                 if cmd.on_failure == FailureMode.FAIL:
-                                    print(f"Context error: Command '{cmd.name}' failed: {result.error_message}", file=sys.stderr)
+                                    print(
+                                        f"Context error: Command '{cmd.name}' failed: {result.error_message}",
+                                        file=sys.stderr,
+                                    )
                                     sys.exit(1)
                                 elif cmd.on_failure == FailureMode.WARN:
                                     context_blocks.append(format_error_block(result))
@@ -1090,7 +1204,9 @@ def main():
                         sys.exit(1)
 
                 # Combine system prompt and context
-                combined_system_message = "\n\n".join(system_parts) if system_parts else None
+                combined_system_message = (
+                    "\n\n".join(system_parts) if system_parts else None
+                )
 
                 conversation = conversation_manager.create(
                     conversation_id=args.conversation,

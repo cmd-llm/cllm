@@ -1497,7 +1497,9 @@ class TestSystemMessageInConversations:
             # But file should still not have system message permanently saved
             # (backward compatibility - we don't modify old conversations)
             saved_conv = json.loads(conv_file.read_text())
-            assert len(saved_conv["messages"]) == 4  # Original 2 + new user + new assistant
+            assert (
+                len(saved_conv["messages"]) == 4
+            )  # Original 2 + new user + new assistant
             # Old conversations continue without system message in storage
             assert saved_conv["messages"][0]["role"] == "user"
 
@@ -1609,3 +1611,256 @@ class TestSystemMessageInConversations:
             )
             assert messages[1]["role"] == "user"
             assert messages[1]["content"] == "Tell me a joke"
+
+
+class TestSystemPromptFlags:
+    """Test suite for --system and --system-file CLI flags (ADR-0022)."""
+
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("sys.stdin.isatty", return_value=True)
+    def test_system_flag_overrides_config(
+        self, mock_isatty, mock_load_config, mock_client_class
+    ):
+        """Test that --system flag overrides default_system_message from config."""
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Test response"
+        mock_client_class.return_value = mock_instance
+
+        # Config has a default_system_message, but --system should override
+        mock_load_config.return_value = {
+            "default_system_message": "You are a helpful assistant."
+        }
+
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--system",
+                "You are a pirate.",
+                "Tell me a joke",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify the LLM was called with the CLI system prompt, not config
+            call_args = mock_instance.complete.call_args
+            messages = call_args[1]["messages"]
+
+            # Should have system message from --system flag
+            assert "You are a pirate." in str(messages)
+            assert "helpful assistant" not in str(messages)
+
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("sys.stdin.isatty", return_value=True)
+    def test_system_file_flag(
+        self, mock_isatty, mock_load_config, mock_client_class, tmp_path
+    ):
+        """Test that --system-file loads system prompt from file."""
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Test response"
+        mock_client_class.return_value = mock_instance
+
+        # Create a temporary system prompt file
+        system_file = tmp_path / "system.txt"
+        system_file.write_text("You are an expert in Python programming.")
+
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--system-file",
+                str(system_file),
+                "How do I write a function?",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify the LLM was called with the system prompt from file
+            call_args = mock_instance.complete.call_args
+            messages = call_args[1]["messages"]
+
+            assert "You are an expert in Python programming." in str(messages)
+
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("sys.stdin.isatty", return_value=True)
+    def test_system_file_overrides_config(
+        self, mock_isatty, mock_load_config, mock_client_class, tmp_path
+    ):
+        """Test that --system-file overrides default_system_message from config."""
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Test response"
+        mock_client_class.return_value = mock_instance
+
+        # Config has a default_system_message
+        mock_load_config.return_value = {
+            "default_system_message": "You are a helpful assistant."
+        }
+
+        # Create system prompt file
+        system_file = tmp_path / "system.txt"
+        system_file.write_text("You are a debugging expert.")
+
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--system-file",
+                str(system_file),
+                "Why does this crash?",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify --system-file overrode config
+            call_args = mock_instance.complete.call_args
+            messages = call_args[1]["messages"]
+
+            assert "debugging expert" in str(messages)
+            assert "helpful assistant" not in str(messages)
+
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("sys.stdin.isatty", return_value=True)
+    def test_system_takes_precedence_over_system_file(
+        self, mock_isatty, mock_load_config, mock_client_class, tmp_path, capsys
+    ):
+        """Test that --system takes precedence over --system-file when both provided."""
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Test response"
+        mock_client_class.return_value = mock_instance
+
+        # Create system prompt file
+        system_file = tmp_path / "system.txt"
+        system_file.write_text("From file")
+
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--system",
+                "From CLI",
+                "--system-file",
+                str(system_file),
+                "Test prompt",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Verify --system was used (not --system-file)
+            call_args = mock_instance.complete.call_args
+            messages = call_args[1]["messages"]
+
+            assert "From CLI" in str(messages)
+            assert "From file" not in str(messages)
+
+            # Verify warning was printed
+            captured = capsys.readouterr()
+            assert "Warning" in captured.err
+            assert "--system" in captured.err
+            assert "--system-file" in captured.err
+
+    @patch("sys.argv", ["cllm", "--system-file", "/nonexistent/file.txt", "prompt"])
+    @patch("cllm.cli.load_config", return_value={})
+    def test_system_file_not_found_error(self, mock_load_config, capsys):
+        """Test that --system-file with nonexistent file produces clear error."""
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        # Should exit with error code
+        assert exc_info.value.code == 1
+
+        # Should print helpful error message
+        captured = capsys.readouterr()
+        assert "System prompt file not found" in captured.err
+        assert "/nonexistent/file.txt" in captured.err
+
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("sys.stdin.isatty", return_value=True)
+    def test_system_file_empty_file_warning(
+        self, mock_isatty, mock_load_config, mock_client_class, tmp_path, capsys
+    ):
+        """Test that --system-file with empty file produces warning."""
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "Test response"
+        mock_client_class.return_value = mock_instance
+
+        # Create empty file
+        system_file = tmp_path / "empty.txt"
+        system_file.write_text("")
+
+        with patch(
+            "sys.argv",
+            [
+                "cllm",
+                "--system-file",
+                str(system_file),
+                "Test prompt",
+            ],
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+            # Should print warning about empty file
+            captured = capsys.readouterr()
+            assert "Warning" in captured.err
+            assert "empty" in captured.err.lower()
+
+    @patch("sys.argv", ["cllm", "--show-config", "--system", "Test system prompt"])
+    @patch("cllm.cli.load_config", return_value={})
+    def test_show_config_displays_system_flag_source(self, mock_load_config, capsys):
+        """Test that --show-config displays system prompt source when --system used."""
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+
+        # Should exit successfully
+        assert exc_info.value.code == 0
+
+        # Should display system prompt source
+        captured = capsys.readouterr()
+        assert "Effective system prompt:" in captured.out
+        assert "--system CLI flag" in captured.out
+        assert "Test system prompt" in captured.out
+
+    @patch("sys.argv", ["cllm", "--show-config", "--system-file", "test.txt"])
+    @patch("cllm.cli.load_config", return_value={})
+    def test_show_config_displays_system_file_source(
+        self, mock_load_config, capsys, tmp_path
+    ):
+        """Test that --show-config displays system prompt source when --system-file used."""
+        # Create system file
+        system_file = tmp_path / "test.txt"
+        system_file.write_text("System prompt from file")
+
+        with patch(
+            "sys.argv",
+            ["cllm", "--show-config", "--system-file", str(system_file)],
+        ):
+            with pytest.raises(SystemExit) as exc_info:
+                main()
+
+            # Should exit successfully
+            assert exc_info.value.code == 0
+
+            # Should display system prompt source
+            captured = capsys.readouterr()
+            assert "Effective system prompt:" in captured.out
+            assert "--system-file CLI flag" in captured.out
+            assert str(system_file) in captured.out

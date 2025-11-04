@@ -39,6 +39,7 @@ CLLM bridges the gap between ChatGPT GUIs and complex automation by providing tr
 - **🔗 LLM Chaining**: Chain multiple LLM calls using bash pipes and scripts
 - **📋 Structured Output**: Get guaranteed JSON output conforming to JSON Schema specifications
 - **💬 Conversation Threading**: Multi-turn conversations with automatic context management
+- **🎭 System Prompt Override**: Customize AI behavior per-command with `--system` or `--system-file` flags
 - **⚡ Real-time Streaming**: Stream responses as they're generated for long-form content
 - **🔍 Debugging & Logging**: Built-in debug mode with structured JSON logging
 - **🤖 Dynamic Context Injection**: Execute commands automatically to inject system context (git status, logs, etc.)
@@ -233,6 +234,15 @@ cllm --model gpt-4 --temperature 1.5 "Write a creative story"
 
 # Limit response length
 cllm --model gpt-4 --max-tokens 100 "Explain quantum computing"
+
+# Customize system prompt on-the-fly
+cllm --system "You are a pirate. Speak like one." "Tell me about Python"
+
+# Load system prompt from file (great for complex, reusable prompts)
+cllm --system-file prompts/code-reviewer.txt < code.py
+
+# Override config file system prompt for specific use
+cllm --conversation debug --system "You are a debugging expert" "Why does this crash?"
 ```
 
 ### Conversation Threading
@@ -1212,6 +1222,8 @@ cllm init --list-templates
 | `--stream`                 | Stream response in real-time                 |
 | `--temperature FLOAT`      | Control randomness (0.0-2.0)                 |
 | `--max-tokens INT`         | Maximum response length                      |
+| `--system TEXT`            | Override system prompt (inline text)         |
+| `--system-file PATH`       | Override system prompt (load from file)      |
 | `--conversation ID`        | Continue/create multi-turn conversation      |
 | `--list-conversations`     | List all saved conversations                 |
 | `--show-conversation ID`   | Display conversation history                 |
@@ -1378,6 +1390,7 @@ CLLM's architecture and features are documented in ADRs (Architecture Decision R
 - [ADR-0015](docs/decisions/0015-add-init-command-for-directory-setup.md): Init Command for Directory Setup (project bootstrapping with templates)
 - [ADR-0016](docs/decisions/0016-configurable-cllm-directory-path.md): Configurable .cllm Directory Path (custom config locations)
 - [ADR-0017](docs/decisions/0017-configurable-conversations-path.md): Configurable Conversations Path (independent control over conversation storage)
+- [ADR-0022](docs/decisions/0022-cli-flag-for-system-prompt-override.md): CLI Flag for System Prompt Override (per-command system prompt customization)
 
 ## Roadmap
 
