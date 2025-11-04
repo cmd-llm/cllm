@@ -1,0 +1,70 @@
+# Code Review Configuration
+# Automatically includes git diff and project context for comprehensive reviews
+#
+# Usage:
+#   cllm --config code-review "Review these changes"
+#   cllm --config code-review "Check for security issues in my latest commit"
+
+# Use GPT-4 for code analysis
+model: "gpt-4"
+
+# Moderate temperature for balanced analysis
+temperature: 0.5
+
+# Allow comprehensive reviews
+max_tokens: 1500
+
+# System message for code review guidance
+default_system_message: |
+  You are an expert code reviewer. Analyze the provided code and provide:
+
+  1. **Issues & Bugs**: Identify potential bugs, edge cases, or errors
+  2. **Best Practices**: Suggest improvements following language conventions
+  3. **Performance**: Note any performance concerns or optimizations
+  4. **Security**: Flag security vulnerabilities or risks
+  5. **Readability**: Recommend clarity improvements
+  6. **Testing**: Suggest test cases or validation needs
+
+  Be constructive, specific, and actionable in your feedback.
+
+# Context commands for code review (ADR-0011)
+# Automatically gather git changes and project state
+context_commands:
+  # Show uncommitted changes
+  - name: "Git Diff (Staged)"
+    command: "git diff --cached"
+    on_failure: "ignore"
+    timeout: 10
+
+  # Show unstaged changes
+  - name: "Git Diff (Unstaged)"
+    command: "git diff"
+    on_failure: "ignore"
+    timeout: 10
+
+  # Show modified files summary
+  - name: "Git Status"
+    command: "git status --short"
+    on_failure: "warn"
+    timeout: 5
+
+  # Recent commit for context
+  - name: "Recent Commit"
+    command: "git log -1 --stat"
+    on_failure: "ignore"
+    timeout: 5
+
+  # Current branch
+  - name: "Current Branch"
+    command: "git branch --show-current"
+    on_failure: "ignore"
+    timeout: 5
+
+# Reliability
+timeout: 90
+num_retries: 2
+
+# Fallback models
+fallbacks:
+  - "claude-3-opus-20240229"
+  - "gpt-3.5-turbo-16k"

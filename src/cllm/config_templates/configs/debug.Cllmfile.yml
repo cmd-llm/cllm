@@ -1,0 +1,46 @@
+# Debug configuration example
+# Enables verbose debugging, JSON structured logging, and automatic context injection
+#
+# Usage:
+#   cllm --config debug "Why is this failing?"
+#   cllm --config debug "Analyze this error" --exec "cat error.log"
+
+model: "gpt-3.5-turbo"
+temperature: 0.7
+
+# Enable debug mode (shows all LiteLLM operations)
+# ⚠️  WARNING: Logs API keys - NOT for production use
+debug: true
+
+# Enable JSON structured logging
+# Useful for log aggregators and monitoring tools
+json_logs: true
+
+# Optional: Write logs to file instead of stderr
+# Uncomment to enable:
+# log_file: "cllm-debug.log"
+
+# Context commands for debugging workflows (ADR-0011)
+# These automatically gather system and project state for better diagnostics
+context_commands:
+  # Git diff to see uncommitted changes
+  - name: "Git Diff"
+    command: "git diff 2>/dev/null || echo 'Not in a git repository'"
+    on_failure: "ignore"
+    timeout: 10
+
+  # Git status for file state
+  - name: "Git Status"
+    command: "git status --short 2>/dev/null || echo 'Not in a git repository'"
+    on_failure: "ignore"
+    timeout: 5
+
+  # Check for Python syntax errors
+  - name: "Python Syntax Check"
+    command: "find . -name '*.py' -type f -exec python3 -m py_compile {} \\; 2>&1 | head -20 || echo 'No Python files or errors'"
+    on_failure: "warn"
+    timeout: 15
+
+default_system_message: |
+  You are a debugging assistant. Analyze the provided context (git changes, error logs, etc.)
+  and help identify root causes and solutions.

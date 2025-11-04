@@ -41,18 +41,15 @@ def get_template_dir() -> Path:
     Get the path to the templates directory in the installed package.
 
     Returns:
-        Path to examples/configs directory
+        Path to config_templates/configs directory
     """
     try:
         # Try importlib.resources (Python 3.9+)
         package_files = files("cllm")
-        # Go up to package root, then to examples/configs
-        # Package structure: src/cllm/ (installed as cllm/)
-        # Templates are at: examples/configs/
-        # Since we're in the cllm package, we need to go to parent, then examples
-        template_path = package_files.parent / "examples" / "configs"
+        # Templates are bundled within the package at cllm/config_templates/configs/
+        template_path = package_files / "config_templates" / "configs"
         if not template_path.is_dir():
-            # Fallback for development: try relative to source
+            # Fallback for development: try examples/configs relative to source
             src_root = Path(__file__).parent.parent.parent
             template_path = src_root / "examples" / "configs"
         return Path(str(template_path))

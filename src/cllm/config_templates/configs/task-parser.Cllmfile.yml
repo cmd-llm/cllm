@@ -1,0 +1,37 @@
+# Task Parser Configuration
+# Parses text into structured tasks with inline JSON schema
+#
+# Usage: echo "Fix bug in auth module and update documentation" | cllm --config task-parser
+
+model: "gpt-4o"
+temperature: 0
+
+# Inline JSON schema (YAML format)
+json_schema:
+  type: object
+  properties:
+    tasks:
+      type: array
+      description: "List of parsed tasks"
+      items:
+        type: object
+        properties:
+          title:
+            type: string
+            description: "Short task title"
+          description:
+            type: string
+            description: "Detailed task description"
+          priority:
+            type: string
+            enum: ["low", "medium", "high", "critical"]
+            description: "Task priority level"
+          category:
+            type: string
+            enum: ["bug", "feature", "docs", "test", "refactor", "other"]
+            description: "Task category"
+        required: ["title", "description", "priority", "category"]
+  required: ["tasks"]
+  additionalProperties: false
+
+default_system_message: "You are a task parsing system. Extract and structure tasks from the given text."

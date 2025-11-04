@@ -1,0 +1,49 @@
+# Example Cllmfile.yml - Default Configuration
+# Place this file in your project root, .cllm/ folder, or ~/.cllm/
+
+# Basic model settings
+model: "gpt-3.5-turbo"
+temperature: 0.7
+max_tokens: 1000
+
+# Sampling parameters
+# top_p: 0.9
+# seed: 42
+
+# Stop sequences (optional)
+# stop:
+#   - "\n\n"
+#   - "END"
+
+# Response penalties
+# frequency_penalty: 0.0
+# presence_penalty: 0.0
+
+# Reliability settings
+timeout: 60
+num_retries: 2
+# Fallback models if primary fails
+# fallbacks:
+#   - "gpt-3.5-turbo-16k"
+#   - "gpt-4"
+
+# Context window fallbacks
+# context_window_fallback_dict:
+#   "gpt-3.5-turbo": "gpt-3.5-turbo-16k"
+
+# API configuration (supports environment variable interpolation)
+# api_key: "${OPENAI_API_KEY}"
+# api_base: "https://api.openai.com/v1"
+
+# Custom headers
+# extra_headers:
+#   X-Custom-Header: "value"
+
+# Metadata for logging
+# metadata:
+#   project: "my-project"
+#   environment: "production"
+
+# CLLM-specific options
+# raw_response: false
+# default_system_message: "You are a helpful assistant."

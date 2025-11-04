@@ -1,0 +1,33 @@
+# Creative Writing Configuration
+# Usage: echo "Write a story about a space explorer" | cllm --config creative
+
+# Use GPT-4 for creative tasks
+model: "gpt-4"
+
+# Higher temperature for more creative, varied outputs
+temperature: 1.2
+
+# Enable nucleus sampling for diversity
+top_p: 0.95
+
+# Allow longer responses for storytelling
+max_tokens: 2000
+
+# System message to encourage creativity
+default_system_message: |
+  You are a creative writing assistant with a flair for vivid storytelling.
+  Your writing should be:
+  - Imaginative and engaging
+  - Rich in descriptive detail
+  - Character-driven with emotional depth
+  - Original and surprising
+  - Well-paced with clear narrative structure
+
+# Reliability settings
+timeout: 120
+num_retries: 2
+
+# Fallback to other creative models
+fallbacks:
+  - "claude-3-opus-20240229"
+  - "gpt-3.5-turbo"

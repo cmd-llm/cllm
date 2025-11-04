@@ -1,0 +1,51 @@
+# Context Injection Demo Configuration
+# Demonstrates ADR-0011: Dynamic Context Injection via Command Execution
+#
+# Usage:
+#   cllm --config context-demo "Analyze the current state of this project"
+#
+# This configuration automatically includes system information and project
+# context in every LLM call, eliminating manual copy-paste workflows.
+
+model: gpt-4
+temperature: 0.7
+max_tokens: 2000
+
+# Context commands execute before the LLM call and inject their output
+# Commands run in parallel by default for optimal performance
+context_commands:
+  # System information
+  - name: "System Info"
+    command: "uname -a"
+    on_failure: "warn" # Include error message if command fails
+    timeout: 5
+
+  # Current directory structure
+  - name: "Project Structure"
+    command: "ls -lah"
+    on_failure: "warn"
+    timeout: 5
+
+  # Git status (if in a git repo)
+  - name: "Git Status"
+    command: "git status --short 2>/dev/null || echo 'Not a git repository'"
+    on_failure: "ignore" # Skip if not in git repo
+    timeout: 5
+
+  # Recent git commits (if in a git repo)
+  - name: "Recent Commits"
+    command: "git log --oneline -5 2>/dev/null || echo 'Not a git repository'"
+    on_failure: "ignore"
+    timeout: 5
+
+  # Python environment (if using Python)
+  - name: "Python Version"
+    command: "python --version 2>/dev/null || python3 --version 2>/dev/null || echo 'Python not found'"
+    on_failure: "ignore"
+    timeout: 5
+
+# System message to guide LLM interpretation
+default_system_message: |
+  You are a helpful assistant analyzing a project workspace.
+  Context commands have been executed to provide you with current system state.
+  Use this context to provide relevant, situational advice.

@@ -1,0 +1,30 @@
+# Summarization Configuration
+# Usage: cllm --config summarize < document.txt
+# Or:    cat document.txt | cllm --config summarize
+
+# Use Claude for high-quality summarization
+model: "claude-3-sonnet-20240229"
+
+# Lower temperature for more focused, factual summaries
+temperature: 0.3
+
+# Limit output length for concise summaries
+max_tokens: 500
+
+# System message to guide summarization behavior
+default_system_message: |
+  You are a professional summarization assistant. Your task is to:
+  - Identify and extract the main ideas and key points
+  - Present information in a clear, logical structure
+  - Maintain factual accuracy
+  - Be concise while preserving essential details
+  - Use bullet points or numbered lists when appropriate
+
+# Ensure reliable completion
+timeout: 60
+num_retries: 2
+
+# Fallback to GPT-4 if Claude is unavailable
+fallbacks:
+  - "gpt-4"
+  - "gpt-3.5-turbo-16k"
