@@ -643,10 +643,13 @@ def configure_debugging(
 
 
 def create_init_parser() -> argparse.ArgumentParser:
-    """Create the argument parser for the init command."""
+    """Create the argument parser for the init command.
+
+    Implements ADR-0023: Configurable Init with CLI Flags
+    """
     parser = argparse.ArgumentParser(
         prog="cllm init",
-        description="Initialize .cllm directory structure with optional templates",
+        description="Initialize .cllm directory structure with optional templates and configuration",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -662,6 +665,14 @@ Examples:
   # Initialize with a template
   cllm init --template code-review
   cllm init --template summarize
+
+  # Initialize with configuration flags (ADR-0023)
+  cllm init --model gpt-4 --temperature 0.7
+  cllm init --system "You are a helpful coding assistant"
+
+  # Combine template with flag overrides (ADR-0023)
+  cllm init --template code-review --model gpt-4
+  cllm init --template creative --temperature 0.9 --max-tokens 3000
 
   # List available templates
   cllm init --list-templates
@@ -711,6 +722,49 @@ Examples:
         help="Custom .cllm directory path (overrides default locations)",
     )
 
+    # Configuration flags (ADR-0023)
+    # These mirror the standard cllm CLI flags and will be written to Cllmfile.yml
+
+    parser.add_argument(
+        "-m",
+        "--model",
+        metavar="MODEL",
+        help="Model to use (e.g., gpt-4, claude-3-opus-20240229)",
+    )
+
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        metavar="TEMP",
+        help="Sampling temperature (0.0 to 2.0)",
+    )
+
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        metavar="N",
+        help="Maximum tokens to generate",
+    )
+
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        metavar="SECONDS",
+        help="Request timeout in seconds",
+    )
+
+    parser.add_argument(
+        "--system",
+        metavar="TEXT",
+        help="System prompt (sets default_system_message in config)",
+    )
+
+    parser.add_argument(
+        "--system-file",
+        metavar="PATH",
+        help="Load system prompt from file (sets default_system_message in config)",
+    )
+
     return parser
 
 
@@ -719,6 +773,7 @@ def handle_init_command(args: list[str]) -> None:
     Handle the init subcommand.
 
     Implements ADR-0016: Configurable .cllm Directory Path
+    Implements ADR-0023: Configurable Init with CLI Flags
 
     Args:
         args: Command-line arguments (excluding 'init')
@@ -731,6 +786,36 @@ def handle_init_command(args: list[str]) -> None:
         list_available_templates()
         sys.exit(0)
 
+    # ADR-0023: Handle --system and --system-file conflict
+    if parsed_args.system and parsed_args.system_file:
+        print(
+            "Error: Cannot specify both --system and --system-file",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # ADR-0023: Build configuration overrides from CLI flags
+    config_overrides = {}
+
+    if parsed_args.model is not None:
+        config_overrides["model"] = parsed_args.model
+
+    if parsed_args.temperature is not None:
+        config_overrides["temperature"] = parsed_args.temperature
+
+    if parsed_args.max_tokens is not None:
+        config_overrides["max_tokens"] = parsed_args.max_tokens
+
+    if parsed_args.timeout is not None:
+        config_overrides["timeout"] = parsed_args.timeout
+
+    if parsed_args.system is not None:
+        config_overrides["default_system_message"] = parsed_args.system
+    elif parsed_args.system_file is not None:
+        # Load system prompt from file
+        system_prompt = load_system_prompt_from_file(parsed_args.system_file)
+        config_overrides["default_system_message"] = system_prompt
+
     # ADR-0016: Check for custom path (CLI flag > CLLM_PATH env var)
     custom_path = parsed_args.cllm_path or os.getenv("CLLM_PATH")
 
@@ -742,6 +827,7 @@ def handle_init_command(args: list[str]) -> None:
             template_name=parsed_args.template,
             force=parsed_args.force,
             cllm_path=custom_path,
+            config_overrides=config_overrides if config_overrides else None,
         )
     except InitError as e:
         print(f"Error: {e}", file=sys.stderr)

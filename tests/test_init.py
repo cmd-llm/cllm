@@ -361,3 +361,170 @@ class TestEdgeCases:
         # This test is platform-dependent, so we'll just verify the error is caught
         # In real usage, this would fail with PermissionError
         pass  # Skip for now - hard to test cross-platform
+
+
+class TestConfigOverrides:
+    """Test configuration overrides (ADR-0023)."""
+
+    def test_init_with_model_override(self, tmp_path, monkeypatch):
+        """Test --model flag overrides default config."""
+        monkeypatch.chdir(tmp_path)
+
+        config_overrides = {"model": "gpt-4"}
+        initialize(config_overrides=config_overrides)
+
+        local_cllm = tmp_path / ".cllm"
+        cllmfile = local_cllm / "Cllmfile.yml"
+        assert cllmfile.exists()
+
+        # Verify config contains overridden model
+        import yaml
+
+        with open(cllmfile) as f:
+            config = yaml.safe_load(f)
+
+        assert config["model"] == "gpt-4"
+
+    def test_init_with_temperature_override(self, tmp_path, monkeypatch):
+        """Test --temperature flag overrides default config."""
+        monkeypatch.chdir(tmp_path)
+
+        config_overrides = {"temperature": 0.9}
+        initialize(config_overrides=config_overrides)
+
+        local_cllm = tmp_path / ".cllm"
+        cllmfile = local_cllm / "Cllmfile.yml"
+
+        import yaml
+
+        with open(cllmfile) as f:
+            config = yaml.safe_load(f)
+
+        assert config["temperature"] == 0.9
+
+    def test_init_with_multiple_overrides(self, tmp_path, monkeypatch):
+        """Test multiple flags override config."""
+        monkeypatch.chdir(tmp_path)
+
+        config_overrides = {
+            "model": "claude-3-opus-20240229",
+            "temperature": 0.7,
+            "max_tokens": 2000,
+            "timeout": 120,
+        }
+        initialize(config_overrides=config_overrides)
+
+        local_cllm = tmp_path / ".cllm"
+        cllmfile = local_cllm / "Cllmfile.yml"
+
+        import yaml
+
+        with open(cllmfile) as f:
+            config = yaml.safe_load(f)
+
+        assert config["model"] == "claude-3-opus-20240229"
+        assert config["temperature"] == 0.7
+        assert config["max_tokens"] == 2000
+        assert config["timeout"] == 120
+
+    def test_init_with_system_prompt_override(self, tmp_path, monkeypatch):
+        """Test --system flag sets default_system_message."""
+        monkeypatch.chdir(tmp_path)
+
+        system_prompt = "You are a helpful coding assistant."
+        config_overrides = {"default_system_message": system_prompt}
+        initialize(config_overrides=config_overrides)
+
+        local_cllm = tmp_path / ".cllm"
+        cllmfile = local_cllm / "Cllmfile.yml"
+
+        import yaml
+
+        with open(cllmfile) as f:
+            config = yaml.safe_load(f)
+
+        assert config["default_system_message"] == system_prompt
+
+    def test_init_template_with_overrides(self, tmp_path, monkeypatch):
+        """Test combining --template with flag overrides."""
+        monkeypatch.chdir(tmp_path)
+
+        # Use code-review template but override the model
+        config_overrides = {"model": "gpt-4-turbo"}
+        initialize(template_name="code-review", config_overrides=config_overrides)
+
+        local_cllm = tmp_path / ".cllm"
+        cllmfile = local_cllm / "code-review.Cllmfile.yml"
+        assert cllmfile.exists()
+
+        import yaml
+
+        with open(cllmfile) as f:
+            config = yaml.safe_load(f)
+
+        # Model should be overridden
+        assert config["model"] == "gpt-4-turbo"
+
+        # Template-specific fields should be preserved
+        assert "default_system_message" in config
+        assert "code review" in config["default_system_message"].lower()
+
+    def test_init_template_override_preserves_non_overridden_fields(
+        self, tmp_path, monkeypatch
+    ):
+        """Test that non-overridden fields from template are preserved."""
+        monkeypatch.chdir(tmp_path)
+
+        # Override only model, temperature should come from template
+        config_overrides = {"model": "gpt-4"}
+        initialize(template_name="code-review", config_overrides=config_overrides)
+
+        local_cllm = tmp_path / ".cllm"
+        cllmfile = local_cllm / "code-review.Cllmfile.yml"
+
+        import yaml
+
+        with open(cllmfile) as f:
+            config = yaml.safe_load(f)
+
+        # Model overridden
+        assert config["model"] == "gpt-4"
+
+        # Template values preserved
+        assert "temperature" in config  # From template
+        assert "default_system_message" in config  # From template
+        assert "context_commands" in config  # From template
+
+    def test_copy_template_shows_override_summary(self, tmp_path):
+        """Test that copy_template includes override summary in message."""
+        cllm_dir = tmp_path / ".cllm"
+        cllm_dir.mkdir()
+
+        config_overrides = {"model": "gpt-4", "temperature": 0.8}
+        messages = copy_template(
+            cllm_dir, template_name=None, config_overrides=config_overrides
+        )
+
+        # Message should show what was overridden
+        message = messages[0]
+        assert "overridden:" in message
+        assert "model" in message or "temperature" in message
+
+    def test_init_without_overrides_unchanged(self, tmp_path, monkeypatch):
+        """Test that init without overrides still works (backward compatibility)."""
+        monkeypatch.chdir(tmp_path)
+
+        # No overrides - should work as before
+        initialize()
+
+        local_cllm = tmp_path / ".cllm"
+        cllmfile = local_cllm / "Cllmfile.yml"
+        assert cllmfile.exists()
+
+        # Should have default config
+        import yaml
+
+        with open(cllmfile) as f:
+            config = yaml.safe_load(f)
+
+        assert "model" in config  # Should have some default model

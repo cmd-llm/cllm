@@ -2,12 +2,15 @@
 Initialize .cllm directories with templates.
 
 Implements ADR-0015: Add Init Command for .cllm Directory Setup
+Implements ADR-0023: Configurable Init with CLI Flags
 """
 
 import shutil
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
+
+import yaml
 
 try:
     # Python 3.9+
@@ -169,18 +172,25 @@ def create_directory_structure(
 
 
 def copy_template(
-    target_dir: Path, template_name: Optional[str] = None, force: bool = False
+    target_dir: Path,
+    template_name: Optional[str] = None,
+    force: bool = False,
+    config_overrides: Optional[Dict[str, Any]] = None,
 ) -> List[str]:
     """
-    Copy template file to target directory.
+    Copy template file to target directory with optional configuration overrides.
+
+    Implements ADR-0023: Configurable Init with CLI Flags
 
     When template_name is None, creates Cllmfile.yml (default config).
     When template_name is provided, creates {template_name}.Cllmfile.yml (named config).
+    If config_overrides are provided, they are merged with the template content (overrides take precedence).
 
     Args:
         target_dir: The .cllm directory
         template_name: Name of template to use (None for default)
         force: If True, overwrite existing file
+        config_overrides: Optional dict of configuration overrides to merge with template
 
     Returns:
         List of status messages
@@ -206,7 +216,7 @@ def copy_template(
     if template_name is None:
         # Use default template
         source_file = get_default_template()
-        messages.append(f"✓ Created {target_file} with starter configuration")
+        message_suffix = "with starter configuration"
     else:
         # Use named template
         templates = discover_templates()
@@ -219,10 +229,37 @@ def copy_template(
             )
 
         source_file = templates[template_name]
-        messages.append(f"✓ Created {target_file} as named configuration")
+        message_suffix = "as named configuration"
 
-    # Copy the file
-    shutil.copy2(source_file, target_file)
+    # ADR-0023: Merge template with config overrides if provided
+    if config_overrides:
+        # Load template content
+        with open(source_file, "r") as f:
+            template_config = yaml.safe_load(f) or {}
+
+        # Merge overrides (overrides take precedence)
+        merged_config = {**template_config, **config_overrides}
+
+        # Write merged config to target file
+        with open(target_file, "w") as f:
+            yaml.dump(
+                merged_config,
+                f,
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+            )
+
+        # Build message showing what was overridden
+        override_keys = list(config_overrides.keys())
+        override_summary = ", ".join(override_keys)
+        messages.append(
+            f"✓ Created {target_file} {message_suffix} (overridden: {override_summary})"
+        )
+    else:
+        # No overrides - just copy the file
+        shutil.copy2(source_file, target_file)
+        messages.append(f"✓ Created {target_file} {message_suffix}")
 
     return messages
 
@@ -332,11 +369,13 @@ def initialize(
     template_name: Optional[str] = None,
     force: bool = False,
     cllm_path: Optional[str] = None,
+    config_overrides: Optional[Dict[str, Any]] = None,
 ) -> None:
     """
     Initialize .cllm directory structure.
 
     Implements ADR-0016: Configurable .cllm Directory Path
+    Implements ADR-0023: Configurable Init with CLI Flags
 
     Args:
         global_init: If True, initialize ~/.cllm
@@ -344,6 +383,7 @@ def initialize(
         template_name: Optional template name to use
         force: If True, overwrite existing files
         cllm_path: Optional custom directory path (overrides global_init/local_init)
+        config_overrides: Optional configuration overrides to merge with template
 
     Raises:
         InitError: If initialization fails
@@ -379,8 +419,13 @@ def initialize(
             for msg in dir_messages:
                 print(msg)
 
-            # Copy template
-            template_messages = copy_template(cllm_dir, template_name, force=force)
+            # Copy template (ADR-0023: with optional config overrides)
+            template_messages = copy_template(
+                cllm_dir,
+                template_name,
+                force=force,
+                config_overrides=config_overrides,
+            )
             for msg in template_messages:
                 print(msg)
 
