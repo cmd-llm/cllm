@@ -1,12 +1,22 @@
-"""Tests for tools module (ADR-0013: LLM-Driven Dynamic Command Execution)."""
+"""Tests for tools module.
+
+Implements tests for:
+- ADR-0013: LLM-Driven Dynamic Command Execution
+- ADR-0024: Explicit Command Parameter Syntax (hybrid support)
+"""
 
 import pytest
 
 from cllm.tools import (
     CommandValidationError,
+    Parameter,
+    ParsedCommand,
+    extract_parameter_hints,
     generate_command_tool,
     get_disallowed_reason,
     is_command_allowed,
+    matches_bracket_command,
+    parse_command_definition,
     validate_command,
 )
 
@@ -221,3 +231,286 @@ class TestValidateCommand:
             validate_command("rm -rf /", config)
 
         assert "rm *" in str(exc_info.value)
+
+
+class TestParseCommandDefinition:
+    """Tests for command definition parsing (ADR-0024)."""
+
+    def test_parses_wildcard_syntax(self):
+        """Should parse legacy wildcard syntax."""
+        parsed = parse_command_definition("cat *")
+
+        assert not parsed.uses_bracket_syntax
+        assert parsed.command_prefix == "cat"
+        assert len(parsed.parameters) == 0
+        assert parsed.original_pattern == "cat *"
+
+    def test_parses_bracket_syntax_with_type_only(self):
+        """Should parse bracket syntax with type only (no hint)."""
+        parsed = parse_command_definition("cat <path>")
+
+        assert parsed.uses_bracket_syntax
+        assert parsed.command_prefix == "cat"
+        assert len(parsed.parameters) == 1
+        assert parsed.parameters[0].type == "path"
+        assert parsed.parameters[0].hint is None
+        assert parsed.parameters[0].position == 0
+
+    def test_parses_bracket_syntax_with_type_and_hint(self):
+        """Should parse bracket syntax with both type and hint."""
+        parsed = parse_command_definition("cat <path:file to read>")
+
+        assert parsed.uses_bracket_syntax
+        assert parsed.command_prefix == "cat"
+        assert len(parsed.parameters) == 1
+        assert parsed.parameters[0].type == "path"
+        assert parsed.parameters[0].hint == "file to read"
+
+    def test_parses_multiple_parameters(self):
+        """Should parse commands with multiple parameters."""
+        parsed = parse_command_definition(
+            "curl -X <string:http method> <url:endpoint url>"
+        )
+
+        assert parsed.uses_bracket_syntax
+        assert parsed.command_prefix == "curl -X"
+        assert len(parsed.parameters) == 2
+        assert parsed.parameters[0].type == "string"
+        assert parsed.parameters[0].hint == "http method"
+        assert parsed.parameters[1].type == "url"
+        assert parsed.parameters[1].hint == "endpoint url"
+
+    def test_parses_complex_command_prefix(self):
+        """Should correctly extract complex command prefixes."""
+        parsed = parse_command_definition(
+            "curl -X POST -H Content-Type:application/json <url:endpoint>"
+        )
+
+        assert parsed.uses_bracket_syntax
+        assert parsed.command_prefix == "curl -X POST -H Content-Type:application/json"
+        assert len(parsed.parameters) == 1
+
+    def test_parses_various_parameter_types(self):
+        """Should parse all supported parameter types."""
+        types = ["string", "number", "path", "url", "json", "regex"]
+
+        for param_type in types:
+            parsed = parse_command_definition(f"cmd <{param_type}:test>")
+            assert parsed.parameters[0].type == param_type
+
+    def test_handles_empty_hint(self):
+        """Should handle brackets with colons but empty hints."""
+        parsed = parse_command_definition("cmd <string:>")
+
+        assert parsed.uses_bracket_syntax
+        assert parsed.parameters[0].type == "string"
+        assert parsed.parameters[0].hint == ""  # Empty string, not None
+
+
+class TestExtractParameterHints:
+    """Tests for parameter hint extraction."""
+
+    def test_extracts_hints_from_parsed_command(self):
+        """Should extract formatted hints from parsed command."""
+        parsed = ParsedCommand(
+            uses_bracket_syntax=True,
+            command_prefix="cat",
+            parameters=[Parameter(type="path", hint="file to read", position=0)],
+            original_pattern="cat <path:file to read>",
+        )
+
+        hints = extract_parameter_hints(parsed)
+
+        assert "Parameters:" in hints
+        assert "path: file to read" in hints
+
+    def test_returns_empty_for_no_parameters(self):
+        """Should return empty string when no parameters."""
+        parsed = ParsedCommand(
+            uses_bracket_syntax=False,
+            command_prefix="cat",
+            parameters=[],
+            original_pattern="cat *",
+        )
+
+        hints = extract_parameter_hints(parsed)
+
+        assert hints == ""
+
+    def test_formats_multiple_parameters(self):
+        """Should format multiple parameters correctly."""
+        parsed = ParsedCommand(
+            uses_bracket_syntax=True,
+            command_prefix="curl",
+            parameters=[
+                Parameter(type="string", hint="http method", position=0),
+                Parameter(type="url", hint="endpoint", position=1),
+            ],
+            original_pattern="curl <string:http method> <url:endpoint>",
+        )
+
+        hints = extract_parameter_hints(parsed)
+
+        assert "string: http method" in hints
+        assert "url: endpoint" in hints
+
+
+class TestMatchesBracketCommand:
+    """Tests for bracket command matching (ADR-0024)."""
+
+    def test_matches_simple_bracket_command(self):
+        """Should match simple bracket commands."""
+        parsed = parse_command_definition("cat <path>")
+        assert matches_bracket_command("cat file.txt", "cat <path>", parsed)
+
+    def test_matches_command_with_hint(self):
+        """Should match bracket commands with hints."""
+        parsed = parse_command_definition("cat <path:file to read>")
+        assert matches_bracket_command("cat README.md", "cat <path:file to read>", parsed)
+
+    def test_matches_multiple_parameters(self):
+        """Should match commands with multiple parameters."""
+        parsed = parse_command_definition(
+            "curl -X <string:http method> <url:endpoint>"
+        )
+        assert matches_bracket_command(
+            "curl -X POST https://api.example.com",
+            "curl -X <string:http method> <url:endpoint>",
+            parsed,
+        )
+
+    def test_rejects_wrong_prefix(self):
+        """Should reject commands with wrong prefix."""
+        parsed = parse_command_definition("cat <path>")
+        assert not matches_bracket_command("dog file.txt", "cat <path>", parsed)
+
+    def test_rejects_wrong_parameter_count(self):
+        """Should reject commands with wrong parameter count."""
+        parsed = parse_command_definition("cat <path>")
+
+        # Too few parameters
+        assert not matches_bracket_command("cat", "cat <path>", parsed)
+
+        # Too many parameters
+        assert not matches_bracket_command(
+            "cat file1.txt file2.txt", "cat <path>", parsed
+        )
+
+    def test_requires_exact_prefix_match(self):
+        """Should require exact prefix matching."""
+        parsed = parse_command_definition("curl -X <string>")
+
+        # Correct prefix
+        assert matches_bracket_command("curl -X POST", "curl -X <string>", parsed)
+
+        # Wrong prefix
+        assert not matches_bracket_command("curl -x POST", "curl -X <string>", parsed)
+
+
+class TestBracketSyntaxIntegration:
+    """Integration tests for bracket syntax with validation (ADR-0024)."""
+
+    def test_bracket_syntax_allows_matching_command(self):
+        """Bracket syntax should allow commands with correct parameters."""
+        config = {
+            "dynamic_commands": {
+                "available_commands": [
+                    {"command": "cat <path:file to read>", "description": "Read file"}
+                ]
+            }
+        }
+
+        assert is_command_allowed("cat file.txt", config)
+        assert is_command_allowed("cat README.md", config)
+
+    def test_bracket_syntax_rejects_wrong_parameter_count(self):
+        """Bracket syntax should reject commands with wrong parameter count."""
+        config = {
+            "dynamic_commands": {
+                "available_commands": [
+                    {"command": "cat <path:file to read>", "description": "Read file"}
+                ]
+            }
+        }
+
+        assert not is_command_allowed("cat", config)
+        assert not is_command_allowed("cat file1.txt file2.txt", config)
+
+    def test_backward_compatibility_with_wildcard(self):
+        """Wildcard syntax should still work alongside bracket syntax."""
+        config = {
+            "dynamic_commands": {
+                "available_commands": [
+                    {"command": "cat <path:file to read>", "description": "New syntax"},
+                    {"command": "ls*", "description": "Old syntax"},  # No space before *
+                ]
+            }
+        }
+
+        # Bracket syntax
+        assert is_command_allowed("cat file.txt", config)
+
+        # Wildcard syntax (ls* matches ls, ls -la, etc.)
+        assert is_command_allowed("ls", config)
+        assert is_command_allowed("ls -la", config)
+        assert is_command_allowed("lsxyz", config)
+
+    def test_provides_helpful_error_for_bracket_mismatch(self):
+        """Should provide parameter count hint for bracket syntax errors."""
+        config = {
+            "dynamic_commands": {
+                "available_commands": [
+                    {
+                        "command": "curl -X <string:http method> <url:endpoint>",
+                        "description": "Make request",
+                    }
+                ]
+            }
+        }
+
+        reason = get_disallowed_reason("curl -X POST", config)
+
+        assert "Expected 2 parameter(s)" in reason
+        assert "got 1" in reason
+
+    def test_tool_description_includes_bracket_parameter_hints(self):
+        """Tool description should include parameter hints from bracket syntax."""
+        config = {
+            "dynamic_commands": {
+                "available_commands": [
+                    {
+                        "command": "curl -X <string:http method> <url:endpoint>",
+                        "description": "Make HTTP request",
+                    }
+                ]
+            }
+        }
+
+        tool = generate_command_tool(config)
+        description = tool["function"]["description"]
+
+        assert "curl -X" in description
+        assert "Make HTTP request" in description
+        assert "Parameters:" in description
+        assert "string: http method" in description
+        assert "url: endpoint" in description
+
+    def test_mixed_parameter_types_in_tool_description(self):
+        """Should handle mixed parameter types in tool descriptions."""
+        config = {
+            "dynamic_commands": {
+                "available_commands": [
+                    {
+                        "command": "process <path:input file> <number:timeout seconds> <json:config>",
+                        "description": "Process with config",
+                    }
+                ]
+            }
+        }
+
+        tool = generate_command_tool(config)
+        description = tool["function"]["description"]
+
+        assert "path: input file" in description
+        assert "number: timeout seconds" in description
+        assert "json: config" in description

@@ -1,0 +1,163 @@
+# ADR-0024: Explicit Command Parameter Syntax - Migration Example
+# ================================================================
+#
+# This configuration demonstrates the new bracket syntax for command parameters
+# while maintaining backward compatibility with legacy wildcard patterns.
+#
+# FEATURE: Hybrid syntax support (ADR-0024)
+# - Old syntax (wildcard): cat * (still works!)
+# - New syntax (bracket): cat <path:file to read> (recommended for new commands)
+#
+# Benefits of bracket syntax:
+# 1. Type information helps LLM choose correct parameters
+# 2. Semantic hints improve parameter selection (e.g., "file path" vs "URL")
+# 3. Better validation - parameter count checking
+# 4. Clearer error messages when validation fails
+#
+# Usage:
+#   cllm "Find all error logs and show their content" --config adr-0024-migration --allow-commands
+#   cllm "Check if my API endpoint is working" --config adr-0024-migration --allow-commands
+#
+
+model: "gpt-4"
+temperature: 0.3
+
+allow_dynamic_commands: true
+
+dynamic_commands:
+  available_commands:
+    # =========================================================================
+    # Phase 1: Legacy wildcard syntax (backward compatible, still supported)
+    # =========================================================================
+    # These commands use the old * wildcard pattern and continue to work.
+    # Gradual migration is optional - no breaking changes required.
+
+    - command: "ls *"
+      description: "List files in a directory with optional flags (legacy syntax)"
+
+    - command: "cat *"
+      description: "Display file contents with optional flags (legacy syntax)"
+
+    # =========================================================================
+    # Phase 2: New bracket syntax (recommended for new commands)
+    # =========================================================================
+    # These commands use the explicit <type:hint> bracket syntax.
+    # More precise parameter handling and better LLM guidance.
+
+    # File operations with explicit type hints
+    - command: "grep <regex:search pattern> <path:file path>"
+      description: |
+        Search for text patterns in files.
+        Parameters:
+        - search pattern: regex or literal text to find
+        - file path: path to the file to search in
+
+    - command: "find . -name <regex:filename pattern> -type f"
+      description: |
+        Find files matching a name pattern in current directory.
+        Parameters:
+        - filename pattern: glob pattern to match (e.g., *.py, error*.log)
+
+    - command: "head -n <number:line count> <path:input file>"
+      description: |
+        Show first N lines of a file.
+        Parameters:
+        - line count: number of lines to display (integer)
+        - input file: path to the file
+
+    # Network operations with URL and data type hints
+    - command: "curl -X <string:http method> <url:endpoint url>"
+      description: |
+        Make an HTTP request to a URL.
+        Parameters:
+        - http method: GET, POST, PUT, DELETE, etc.
+        - endpoint url: full URL including protocol (https://...)
+
+    - command: "curl -X POST <url:api endpoint> --data <json:json payload>"
+      description: |
+        Submit JSON data to an API endpoint.
+        Parameters:
+        - api endpoint: API endpoint URL (https://...)
+        - json payload: JSON request body as a string
+
+    # Development tools with type hints
+    - command: "git log -n <number:commit count> --oneline"
+      description: |
+        Show recent commits with short format.
+        Parameters:
+        - commit count: number of commits to display (integer)
+
+    - command: "git show <regex:commit hash or ref>"
+      description: |
+        Show details of a specific commit.
+        Parameters:
+        - commit hash or ref: commit hash, branch name, or tag
+
+    # Code analysis with various type hints
+    - command: "rg <regex:search pattern> --type <string:file type>"
+      description: |
+        Search source code with ripgrep (respects .gitignore).
+        Parameters:
+        - search pattern: regex or literal text to search
+        - file type: language identifier (py, js, ts, go, rust, etc.)
+
+    # Data processing with path hints
+    - command: "jq <string:jq filter> <path:json file>"
+      description: |
+        Parse and transform JSON data using jq.
+        Parameters:
+        - jq filter: jq filter expression (. for raw, .field for field extraction)
+        - json file: path to JSON file to process
+
+    # =========================================================================
+    # Parameter Type Reference (ADR-0024)
+    # =========================================================================
+    # <string>              - Generic text (most flexible)
+    # <string:hint>         - Text with semantic hint for LLM
+    # <number>              - Integer or float value
+    # <path>                - File or directory path
+    # <url>                 - HTTP/HTTPS URL
+    # <json>                - JSON data structure
+    # <regex>               - Regular expression pattern
+    #
+    # Examples:
+    # - <path:input file>        - clear that this is a file path
+    # - <string:api key>         - indicates this is an API credential
+    # - <url:webhook endpoint>   - shows this should be a URL
+    # - <json:request body>      - indicates JSON data is expected
+
+  # Deny dangerous operations regardless of syntax
+  deny:
+    - "rm *"
+    - "sudo *"
+    - "dd *"
+    - "mv *"
+    - "> *"
+    - "chmod *"
+
+  timeout: 30
+  max_commands: 5
+  require_confirmation: false
+
+timeout: 60
+num_retries: 2
+
+default_system_message: |
+  You are a helpful assistant with access to shell commands for analyzing code and files.
+
+  Available command types:
+  - File operations: ls, cat, head, find, grep, rg
+  - Network operations: curl (GET/POST requests)
+  - Git operations: git log, git show
+  - Data processing: jq for JSON
+
+  When using commands with the new bracket syntax:
+  - Types in brackets show what kind of value is expected
+  - Hints after the colon provide semantic guidance
+  - Example: <path:input file> means provide a file path for "input file"
+
+  You can use either wildcard syntax (cat *) or bracket syntax (cat <path>).
+  Both work - bracket syntax just provides clearer parameter guidance.
+
+  Choose the most appropriate commands and parameters to answer the user's question.
+  Be concise but thorough in your analysis.

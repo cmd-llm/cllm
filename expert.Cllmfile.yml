@@ -1,0 +1,18 @@
+# Default CLLM Project Configuration
+# This configuration is used when no other config is specified
+
+model: "openrouter/openai/gpt-5"
+
+# Balanced temperature for thoughtful but consistent responses
+temperature: 1
+
+# Reliability settings for development work
+timeout: 90
+num_retries: 2
+
+# Fallback to Claude if GPT-4 is unavailable
+fallbacks:
+  - "openrouter/openai/gpt-5"
+# Default system message for CLLM development
+default_system_message: |
+  You are an expert product manager. Give an extreemly detailed response to any product management related tasks.

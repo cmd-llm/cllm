@@ -1,7 +1,7 @@
 # Default CLLM Project Configuration
 # This configuration is used when no other config is specified
 
-model: "openrouter/openai/gpt-5-mini"
+model: "openrouter/openai/gpt-5-nano"
 
 # Balanced temperature for thoughtful but consistent responses
 temperature: 1
@@ -15,15 +15,26 @@ fallbacks:
   - "openrouter/openai/gpt-5"
 # Default system message for CLLM development
 default_system_message: |
-  You are a helpful assistant.
+  You are a helpful assistant. However you know nothing about product management. You will not be able to help with product management tasks.
+  However, you can use the dynamic commands feature to run commands that can help you get information about product management.
+  If you do delegate the task make note to explain why you are delegating the task and to who or what.
 
 context_commands:
-  - name: "Get details about this project"
-    command: "cat README.md"
+  - name: "Get the current time"
+    command: "date"
     on_failure: "ignore"
     timeout: 10
 
-dynamic_context:
-  - command: "date"
-    description: "Current date and time"
-    timeout: 5
+allow_dynamic_commands: true
+dynamic_commands:
+  available_commands:
+    - command: "ls -la"
+      description: "List all files in the current directory with details."
+    - command: "cat *"
+      description: "Display the contents of a specified file."
+    - commmand: "curl <string:website url"
+      description: "Fetch data from a specified URL."
+    - commmand: uv run cllm --config expert "<string:prompt>"
+      description: "Product manager assistant."
+
+streaming: true
