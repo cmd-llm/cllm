@@ -4,6 +4,7 @@ Command-line interface for CLLM.
 Provides a bash-centric CLI for interacting with LLMs across multiple providers.
 Implements ADR-0005: Add Structured Output Support with JSON Schema
 Implements ADR-0009: Add Debugging and Logging Support
+Implements ADR-0025: Logging Verbosity Levels
 """
 
 import argparse
@@ -228,6 +229,14 @@ For full provider list: https://docs.litellm.ai/docs/providers
         "--log-file",
         metavar="PATH",
         help="Write debug/log output to file instead of stderr",
+    )
+
+    # Verbosity levels (ADR-0025)
+    parser.add_argument(
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase verbosity level (can be used multiple times: --verbose or --verbose --verbose)",
     )
 
     # Context injection arguments (ADR-0011)
@@ -642,6 +651,80 @@ def configure_debugging(
     return log_file_handle
 
 
+class VerbosityHandler:
+    """
+    Handles verbosity output for different logging levels.
+
+    Implements ADR-0025: Logging Verbosity Levels
+
+    Levels:
+    - 0: No verbose output (default)
+    - 1: Basic info (model, tokens, provider, latency)
+    - 2: API details (endpoint, parameters, response status, config sources)
+    - 3: Full debug (same as --debug, handled by LiteLLM)
+    """
+
+    def __init__(self, level: int = 0):
+        """Initialize with verbosity level."""
+        self.level = min(level, 3)  # Cap at level 3
+
+    def print_basic_info(
+        self,
+        model: str,
+        input_tokens: Optional[int] = None,
+        output_tokens: Optional[int] = None,
+        provider: Optional[str] = None,
+        latency_seconds: Optional[float] = None,
+    ):
+        """Print basic info (level 1)."""
+        if self.level < 1:
+            return
+
+        lines = []
+        lines.append(f"Model: {model}")
+
+        if input_tokens is not None and output_tokens is not None:
+            total = input_tokens + output_tokens
+            lines.append(
+                f"Tokens: {input_tokens} input, {output_tokens} output ({total} total)"
+            )
+
+        if provider:
+            lines.append(f"Provider: {provider}")
+
+        if latency_seconds is not None:
+            lines.append(f"Latency: {latency_seconds:.2f}s")
+
+        for line in lines:
+            print(line, file=sys.stderr)
+
+    def print_api_details(
+        self,
+        endpoint: Optional[str] = None,
+        parameters: Optional[Dict[str, Any]] = None,
+        status_code: Optional[int] = None,
+        config_sources: Optional[list[str]] = None,
+    ):
+        """Print API details (level 2)."""
+        if self.level < 2:
+            return
+
+        if endpoint:
+            print(f"Endpoint: {endpoint}", file=sys.stderr)
+
+        if parameters:
+            params_str = ", ".join(
+                [f"{k}={v}" for k, v in sorted(parameters.items())]
+            )
+            print(f"Parameters: {params_str}", file=sys.stderr)
+
+        if status_code:
+            print(f"Status: {status_code}", file=sys.stderr)
+
+        if config_sources:
+            print(f"Config sources: {', '.join(config_sources)}", file=sys.stderr)
+
+
 def create_init_parser() -> argparse.ArgumentParser:
     """Create the argument parser for the init command.
 
@@ -875,6 +958,9 @@ def main():
         cli_args["json_logs"] = args.json_logs
     if args.log_file is not None:
         cli_args["log_file"] = args.log_file
+    # Verbosity level (ADR-0025)
+    if args.verbose > 0:
+        cli_args["verbosity"] = args.verbose
 
     # Merge config with CLI args (CLI takes precedence)
     config = merge_config_with_args(file_config, cli_args)
@@ -928,9 +1014,29 @@ def main():
     if "log_file" not in config and os.getenv("CLLM_LOG_FILE"):
         config["log_file"] = os.getenv("CLLM_LOG_FILE")
 
+    # Support environment variable for verbosity level (ADR-0025)
+    # Precedence: CLI flags > Cllmfile > Environment variables
+    if "verbosity" not in config and os.getenv("CLLM_VERBOSITY"):
+        try:
+            config["verbosity"] = int(os.getenv("CLLM_VERBOSITY"))
+        except ValueError:
+            print(
+                f"Warning: Invalid CLLM_VERBOSITY value: {os.getenv('CLLM_VERBOSITY')} (must be 0-3)",
+                file=sys.stderr,
+            )
+
     # Set defaults if not in config
     if "model" not in config:
         config["model"] = "gpt-3.5-turbo"
+
+    # Handle verbosity levels (ADR-0025)
+    # Verbosity level 3 automatically enables debug mode
+    verbosity_level = config.get("verbosity", 0)
+    if verbosity_level == 3:
+        config["debug"] = True
+
+    # Create VerbosityHandler instance for output during execution
+    verbosity_handler = VerbosityHandler(level=verbosity_level)
 
     # Configure debugging and logging (ADR-0009)
     # Do this early so debug output is captured for all operations

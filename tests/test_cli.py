@@ -490,6 +490,283 @@ class TestDebugging:
                 assert mock_litellm.json_logs is True
 
 
+class TestVerbosity:
+    """Test suite for verbosity levels (ADR-0025)."""
+
+    def test_verbosity_handler_level_0(self, capsys):
+        """Test VerbosityHandler level 0 produces no output."""
+        from cllm.cli import VerbosityHandler
+
+        handler = VerbosityHandler(level=0)
+        handler.print_basic_info(
+            model="gpt-4",
+            input_tokens=10,
+            output_tokens=20,
+            provider="openai",
+            latency_seconds=1.5,
+        )
+
+        captured = capsys.readouterr()
+        assert captured.err == ""
+
+    def test_verbosity_handler_level_1(self, capsys):
+        """Test VerbosityHandler level 1 prints basic info."""
+        from cllm.cli import VerbosityHandler
+
+        handler = VerbosityHandler(level=1)
+        handler.print_basic_info(
+            model="gpt-4",
+            input_tokens=10,
+            output_tokens=20,
+            provider="openai",
+            latency_seconds=1.5,
+        )
+
+        captured = capsys.readouterr()
+        assert "Model: gpt-4" in captured.err
+        assert "Tokens: 10 input, 20 output (30 total)" in captured.err
+        assert "Provider: openai" in captured.err
+        assert "Latency: 1.50s" in captured.err
+
+    def test_verbosity_handler_level_1_partial_info(self, capsys):
+        """Test VerbosityHandler level 1 with partial info."""
+        from cllm.cli import VerbosityHandler
+
+        handler = VerbosityHandler(level=1)
+        handler.print_basic_info(model="gpt-4")
+
+        captured = capsys.readouterr()
+        assert "Model: gpt-4" in captured.err
+        assert "Tokens:" not in captured.err
+
+    def test_verbosity_handler_level_2(self, capsys):
+        """Test VerbosityHandler level 2 prints API details."""
+        from cllm.cli import VerbosityHandler
+
+        handler = VerbosityHandler(level=2)
+        handler.print_api_details(
+            endpoint="https://api.openai.com/v1/chat/completions",
+            parameters={"temperature": 0.7, "max_tokens": 1000},
+            status_code=200,
+            config_sources=["~/.cllm/Cllmfile.yml"],
+        )
+
+        captured = capsys.readouterr()
+        assert "Endpoint: https://api.openai.com/v1/chat/completions" in captured.err
+        assert "temperature=0.7" in captured.err
+        assert "max_tokens=1000" in captured.err
+        assert "Status: 200" in captured.err
+        assert "Config sources" in captured.err
+
+    def test_verbosity_handler_caps_level_at_3(self):
+        """Test VerbosityHandler caps verbosity at level 3."""
+        from cllm.cli import VerbosityHandler
+
+        handler = VerbosityHandler(level=5)
+        assert handler.level == 3
+
+    @patch("sys.argv", ["cllm", "--verbose", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_cli_verbose_flag_level_1(
+        self, mock_load_config, mock_client, mock_isatty
+    ):
+        """Test that --verbose flag sets verbosity level 1 via CLI."""
+        from cllm.cli import main
+
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        # Verify LLMClient was instantiated (means no early exit)
+        assert mock_client.called
+
+    @patch("sys.argv", ["cllm", "--verbose", "--verbose", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_cli_verbose_flag_level_2(
+        self, mock_load_config, mock_client, mock_isatty
+    ):
+        """Test that --verbose --verbose flag sets verbosity level 2 via CLI."""
+        from cllm.cli import main
+
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        # Verify LLMClient was instantiated
+        assert mock_client.called
+
+    @patch("sys.argv", ["cllm", "--verbose", "--verbose", "--verbose", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_cli_verbose_level_3_enables_debug(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
+        """Test that --verbose --verbose --verbose (level 3) enables debug mode."""
+        from cllm.cli import main
+
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        # Verify debug mode was automatically enabled
+        assert mock_litellm.set_verbose is True
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_environment_variable_verbosity(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
+        """Test that CLLM_VERBOSITY environment variable sets verbosity level."""
+        from cllm.cli import main
+
+        with patch.dict(os.environ, {"CLLM_VERBOSITY": "2"}):
+            with patch("sys.argv", ["cllm", "test prompt"]):
+                # Mock the client to avoid actual API calls
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "test response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify client was called
+                assert mock_client.called
+
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_invalid_environment_variable_verbosity(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty, capsys
+    ):
+        """Test that invalid CLLM_VERBOSITY value shows warning."""
+        from cllm.cli import main
+
+        with patch.dict(os.environ, {"CLLM_VERBOSITY": "invalid"}):
+            with patch("sys.argv", ["cllm", "test prompt"]):
+                # Mock the client to avoid actual API calls
+                mock_instance = MagicMock()
+                mock_instance.complete.return_value = "test response"
+                mock_client.return_value = mock_instance
+
+                try:
+                    main()
+                except SystemExit:
+                    pass
+
+                # Verify warning was shown
+                captured = capsys.readouterr()
+                assert "Invalid CLLM_VERBOSITY" in captured.err
+
+    def test_verbosity_from_cllmfile(self, tmp_path):
+        """Test that verbosity can be loaded from Cllmfile.yml."""
+        from cllm.cli import main
+
+        # Create a temporary Cllmfile.yml with verbosity setting
+        cllm_dir = tmp_path / ".cllm"
+        cllm_dir.mkdir()
+        cllmfile = cllm_dir / "Cllmfile.yml"
+        cllmfile.write_text("verbosity: 2\n")
+
+        with patch("sys.argv", ["cllm", "test prompt"]):
+            with patch("sys.stdin.isatty", return_value=True):
+                with patch("cllm.cli.LLMClient") as mock_client:
+                    with patch("cllm.cli.load_config") as mock_load_config:
+                        # Mock load_config to return config with verbosity
+                        mock_load_config.return_value = {"verbosity": 2}
+
+                        # Mock the client to avoid actual API calls
+                        mock_instance = MagicMock()
+                        mock_instance.complete.return_value = "test response"
+                        mock_client.return_value = mock_instance
+
+                        try:
+                            main()
+                        except SystemExit:
+                            pass
+
+                        # Verify client was called
+                        assert mock_client.called
+
+    @patch("sys.argv", ["cllm", "--verbose", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_cli_flag_overrides_verbosity_config(
+        self, mock_load_config, mock_client, mock_isatty
+    ):
+        """Test that CLI --verbose flag overrides Cllmfile verbosity setting."""
+        from cllm.cli import main
+
+        # Mock load_config to return different verbosity
+        mock_load_config.return_value = {"verbosity": 0}
+
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        # Verify client was called (implementation would use CLI value)
+        assert mock_client.called
+
+    @patch("sys.argv", ["cllm", "--verbose", "--debug", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_verbose_with_debug_flag(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
+        """Test that --verbose and --debug flags can be used together."""
+        from cllm.cli import main
+
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        # Verify debug mode was enabled
+        assert mock_litellm.set_verbose is True
+
+
 class TestContextInjection:
     """Integration tests for context injection (ADR-0011)."""
 

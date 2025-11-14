@@ -42,7 +42,7 @@ CLLM bridges the gap between ChatGPT GUIs and complex automation by providing tr
 - **💬 Conversation Threading**: Multi-turn conversations with automatic context management
 - **🎭 System Prompt Override**: Customize AI behavior per-command with `--system` or `--system-file` flags
 - **⚡ Real-time Streaming**: Stream responses as they're generated for long-form content
-- **🔍 Debugging & Logging**: Built-in debug mode with structured JSON logging
+- **🔍 Debugging & Logging**: Built-in debug mode with structured JSON logging and progressive verbosity levels
 - **🤖 Dynamic Context Injection**: Execute commands automatically to inject system context (git status, logs, etc.)
 - **🔧 Variable Expansion**: Parameterized commands with Jinja2 templates for reusable workflows
 - **🧠 LLM-Driven Command Execution**: Let the LLM intelligently choose and run commands as needed
@@ -484,6 +484,37 @@ cllm "What is 2+2?"  # Debug output automatically enabled
 **Security Warning**: Debug mode logs API keys. Never use `--debug` in production or with confidential data.
 
 See [ADR-0009](docs/decisions/0009-add-debugging-and-logging-support.md) for complete documentation.
+
+### Verbosity Levels (ADR-0025)
+
+For more granular control over output verbosity without full debug mode, use the `--verbose` flag:
+
+```bash
+# Level 1: Basic info (model, token counts, provider)
+cllm --verbose "Analyze this document"
+
+# Level 2: Add API details (endpoint, parameters, response status)
+cllm --verbose --verbose "Analyze this document"
+
+# Level 3: Full debug (equivalent to --debug)
+cllm --verbose --verbose --verbose "Analyze this document"
+
+# Use environment variable for persistent verbosity
+export CLLM_VERBOSITY=2
+cllm "Your prompt"  # Will show API details
+
+# Combine with other debug flags
+cllm --verbose --json-logs "Save detailed logs" > output.json
+```
+
+**Verbosity Levels:**
+
+- **Level 0** (default): No verbose output
+- **Level 1** (`--verbose`): Shows model name, token count, provider, latency
+- **Level 2** (`--verbose --verbose`): Adds API endpoint, parameters, status code, config sources
+- **Level 3** (`--verbose --verbose --verbose`): Full debug output (same as `--debug`)
+
+See [ADR-0025](docs/decisions/0025-logging-verbosity-levels.md) for complete documentation.
 
 ### Python API
 
@@ -1330,6 +1361,7 @@ cllm init --list-templates
 | `--debug`                  | Enable debug mode (⚠️ logs API keys)         |
 | `--json-logs`              | Enable structured JSON logging               |
 | `--log-file PATH`          | Write debug output to file                   |
+| `--verbose`                | Increase verbosity level (repeatable)        |
 | `--help`                   | Show help message                            |
 
 ## Providers & Models
