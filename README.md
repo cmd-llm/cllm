@@ -487,32 +487,37 @@ See [ADR-0009](docs/decisions/0009-add-debugging-and-logging-support.md) for com
 
 ### Verbosity Levels (ADR-0025)
 
-For more granular control over output verbosity without full debug mode, use the `--verbose` flag:
+For more granular control over output verbosity without full debug mode, use the `-v` flag:
 
 ```bash
 # Level 1: Basic info (model, token counts, provider)
-cllm --verbose "Analyze this document"
+cllm -v "Analyze this document"
 
 # Level 2: Add API details (endpoint, parameters, response status)
-cllm --verbose --verbose "Analyze this document"
+cllm -vv "Analyze this document"
 
 # Level 3: Full debug (equivalent to --debug)
-cllm --verbose --verbose --verbose "Analyze this document"
+cllm -vvv "Analyze this document"
+
+# Long form alternatives (if you prefer)
+cllm --verbose "Analyze this document"
+cllm --verbose --verbose "Analyze this document"
 
 # Use environment variable for persistent verbosity
 export CLLM_VERBOSITY=2
 cllm "Your prompt"  # Will show API details
 
 # Combine with other debug flags
-cllm --verbose --json-logs "Save detailed logs" > output.json
+cllm -vv --json-logs "Save detailed logs" > output.json
+cllm -vvv --log-file debug.log "Deep inspection"
 ```
 
 **Verbosity Levels:**
 
 - **Level 0** (default): No verbose output
-- **Level 1** (`--verbose`): Shows model name, token count, provider, latency
-- **Level 2** (`--verbose --verbose`): Adds API endpoint, parameters, status code, config sources
-- **Level 3** (`--verbose --verbose --verbose`): Full debug output (same as `--debug`)
+- **Level 1** (`-v`): Shows model name, token count, provider, latency
+- **Level 2** (`-vv`): Adds API endpoint, parameters, status code, config sources
+- **Level 3** (`-vvv`): Full debug output (same as `--debug`)
 
 See [ADR-0025](docs/decisions/0025-logging-verbosity-levels.md) for complete documentation.
 
@@ -1361,7 +1366,8 @@ cllm init --list-templates
 | `--debug`                  | Enable debug mode (⚠️ logs API keys)         |
 | `--json-logs`              | Enable structured JSON logging               |
 | `--log-file PATH`          | Write debug output to file                   |
-| `--verbose`                | Increase verbosity level (repeatable)        |
+| `-v`, `-vv`, `-vvv`        | Set verbosity level (1, 2, or 3)             |
+| `--verbose`                | Increase verbosity level (long form, repeatable) |
 | `--help`                   | Show help message                            |
 
 ## Providers & Models

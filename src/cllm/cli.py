@@ -233,10 +233,11 @@ For full provider list: https://docs.litellm.ai/docs/providers
 
     # Verbosity levels (ADR-0025)
     parser.add_argument(
+        "-v",
         "--verbose",
         action="count",
         default=0,
-        help="Increase verbosity level (can be used multiple times: --verbose or --verbose --verbose)",
+        help="Increase verbosity level (use -v, -vv, or -vvv for levels 1, 2, 3)",
     )
 
     # Context injection arguments (ADR-0011)
@@ -282,7 +283,6 @@ For full provider list: https://docs.litellm.ai/docs/providers
     # Variable expansion arguments (ADR-0012)
     parser.add_argument(
         "--var",
-        "-v",
         action="append",
         metavar="KEY=VALUE",
         dest="variables",

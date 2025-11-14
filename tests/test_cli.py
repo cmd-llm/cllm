@@ -565,14 +565,14 @@ class TestVerbosity:
         handler = VerbosityHandler(level=5)
         assert handler.level == 3
 
-    @patch("sys.argv", ["cllm", "--verbose", "test prompt"])
+    @patch("sys.argv", ["cllm", "-v", "test prompt"])
     @patch("sys.stdin.isatty", return_value=True)
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
-    def test_cli_verbose_flag_level_1(
+    def test_cli_verbose_flag_level_1_short(
         self, mock_load_config, mock_client, mock_isatty
     ):
-        """Test that --verbose flag sets verbosity level 1 via CLI."""
+        """Test that -v flag sets verbosity level 1 via CLI."""
         from cllm.cli import main
 
         # Mock the client to avoid actual API calls
@@ -588,11 +588,58 @@ class TestVerbosity:
         # Verify LLMClient was instantiated (means no early exit)
         assert mock_client.called
 
+    @patch("sys.argv", ["cllm", "-vv", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    def test_cli_verbose_flag_level_2_short(
+        self, mock_load_config, mock_client, mock_isatty
+    ):
+        """Test that -vv flag sets verbosity level 2 via CLI."""
+        from cllm.cli import main
+
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        # Verify LLMClient was instantiated
+        assert mock_client.called
+
+    @patch("sys.argv", ["cllm", "-vvv", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    def test_cli_verbose_level_3_short_enables_debug(
+        self, mock_litellm, mock_load_config, mock_client, mock_isatty
+    ):
+        """Test that -vvv (level 3) enables debug mode."""
+        from cllm.cli import main
+
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        # Verify debug mode was automatically enabled
+        assert mock_litellm.set_verbose is True
+
     @patch("sys.argv", ["cllm", "--verbose", "--verbose", "test prompt"])
     @patch("sys.stdin.isatty", return_value=True)
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
-    def test_cli_verbose_flag_level_2(
+    def test_cli_verbose_flag_level_2_long(
         self, mock_load_config, mock_client, mock_isatty
     ):
         """Test that --verbose --verbose flag sets verbosity level 2 via CLI."""
@@ -610,30 +657,6 @@ class TestVerbosity:
 
         # Verify LLMClient was instantiated
         assert mock_client.called
-
-    @patch("sys.argv", ["cllm", "--verbose", "--verbose", "--verbose", "test prompt"])
-    @patch("sys.stdin.isatty", return_value=True)
-    @patch("cllm.cli.LLMClient")
-    @patch("cllm.cli.load_config", return_value={})
-    @patch("cllm.cli.litellm")
-    def test_cli_verbose_level_3_enables_debug(
-        self, mock_litellm, mock_load_config, mock_client, mock_isatty
-    ):
-        """Test that --verbose --verbose --verbose (level 3) enables debug mode."""
-        from cllm.cli import main
-
-        # Mock the client to avoid actual API calls
-        mock_instance = MagicMock()
-        mock_instance.complete.return_value = "test response"
-        mock_client.return_value = mock_instance
-
-        try:
-            main()
-        except SystemExit:
-            pass
-
-        # Verify debug mode was automatically enabled
-        assert mock_litellm.set_verbose is True
 
     @patch("sys.stdin.isatty", return_value=True)
     @patch("cllm.cli.LLMClient")
@@ -716,14 +739,14 @@ class TestVerbosity:
                         # Verify client was called
                         assert mock_client.called
 
-    @patch("sys.argv", ["cllm", "--verbose", "test prompt"])
+    @patch("sys.argv", ["cllm", "-v", "test prompt"])
     @patch("sys.stdin.isatty", return_value=True)
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
     def test_cli_flag_overrides_verbosity_config(
         self, mock_load_config, mock_client, mock_isatty
     ):
-        """Test that CLI --verbose flag overrides Cllmfile verbosity setting."""
+        """Test that CLI -v flag overrides Cllmfile verbosity setting."""
         from cllm.cli import main
 
         # Mock load_config to return different verbosity
@@ -742,7 +765,7 @@ class TestVerbosity:
         # Verify client was called (implementation would use CLI value)
         assert mock_client.called
 
-    @patch("sys.argv", ["cllm", "--verbose", "--debug", "test prompt"])
+    @patch("sys.argv", ["cllm", "-v", "--debug", "test prompt"])
     @patch("sys.stdin.isatty", return_value=True)
     @patch("cllm.cli.LLMClient")
     @patch("cllm.cli.load_config", return_value={})
@@ -750,7 +773,7 @@ class TestVerbosity:
     def test_verbose_with_debug_flag(
         self, mock_litellm, mock_load_config, mock_client, mock_isatty
     ):
-        """Test that --verbose and --debug flags can be used together."""
+        """Test that -v and --debug flags can be used together."""
         from cllm.cli import main
 
         # Mock the client to avoid actual API calls

@@ -8,7 +8,7 @@ Currently, CLLM's debugging support (ADR-0009) provides binary debug modes: eith
 - Users debugging API issues want API-level details but not full request/response traces
 - Power users need the complete verbose output for deep troubleshooting
 
-The `--verbose` flag has become a Unix standard convention for progressive detail levels (often used as `-v`, `-vv`, `-vvv`), providing a familiar, intuitive interface for users familiar with tools like `curl`, `ssh`, or `rsync`.
+The `-v`, `-vv`, `-vvv` pattern is a Unix standard convention for progressive verbosity levels, providing a familiar, intuitive interface for users familiar with tools like `curl -v`, `ssh -vv`, or `rsync -vv`.
 
 ## Decision Drivers
 
@@ -22,9 +22,9 @@ The `--verbose` flag has become a Unix standard convention for progressive detai
 
 ## Considered Options
 
-- **Option 1**: Replace `--debug` with `--verbose` progressive levels
+- **Option 1**: Replace `--debug` with `-v` / `-vv` / `-vvv` progressive levels
 - **Option 2**: Add `--verbose=LEVEL` with named levels (quiet, normal, verbose, debug)
-- **Option 3**: Add `-v` / `-vv` / `-vvv` flags alongside existing `--debug`
+- **Option 3**: Add `-v` / `-vv` / `-vvv` alongside existing `--debug` (keep backward compat)
 - **Option 4**: Add `--verbosity` (0, 1, 2, 3) numeric levels
 - **Option 5**: Extend `--debug` to accept optional level parameter (`--debug=2`)
 
@@ -33,21 +33,23 @@ The `--verbose` flag has become a Unix standard convention for progressive detai
 Chosen option: **"Option 3: Add `-v` / `-vv` / `-vvv` flags alongside existing `--debug`"**, because:
 
 1. Maintains backward compatibility with ADR-0009's `--debug` flag
-2. Follows Unix convention that developers already know
-3. Works complementarily with other debug flags (not mutually exclusive)
-4. Provides three intuitive levels covering common debugging scenarios
-5. Simple to implement and document
+2. Follows Unix convention that developers already know and expect
+3. Single short flag (`-v`) is more concise than `--verbose --verbose`
+4. Works complementarily with other debug flags (not mutually exclusive)
+5. Provides three intuitive levels covering common debugging scenarios
+6. Simple to implement and document
 
 ### Consequences
 
-- Good, because `-v` is universally recognized by developers
+- Good, because `-v`, `-vv`, `-vvv` are universally recognized by developers
 - Good, because existing `--debug` users won't experience any breaking changes
-- Good, because `-v`, `-vv`, `-vvv` can stack (like `curl -v`, `ssh -vv`)
+- Good, because `-v`, `-vv`, `-vvv` work naturally (like `curl -v`, `ssh -vv`)
 - Good, because verbosity can be combined with `--json-logs` and `--log-file`
+- Good, because single flag approach is intuitive and space-efficient
 - Good, because three levels cover most use cases without overwhelming options
 - Neutral, because users need to understand what each level shows
 - Bad, because adds another dimension to the CLI surface area
-- Bad, because some users may expect `-v` and `--verbose` to work identically
+- Bad, because `-v` short form must be implemented with action='count'
 
 ### Confirmation
 
@@ -186,19 +188,20 @@ cllm --debug=2 "API details"
 **CLI Flag Support:**
 
 ```bash
-# Repetable flag syntax (Unix convention)
+# Unix-style short flags (primary syntax)
 cllm -v "prompt"          # Verbosity level 1
 cllm -vv "prompt"         # Verbosity level 2
 cllm -vvv "prompt"        # Verbosity level 3
 
-# Also support long form
-cllm --verbose "prompt"           # Level 1 (alternative)
-cllm --verbose --verbose "prompt" # Level 2 (alternative)
-cllm --verbose --verbose --verbose "prompt" # Level 3 (alternative)
+# Long form for clarity (optional, repeatable)
+cllm --verbose "prompt"                           # Level 1 (alternative)
+cllm --verbose --verbose "prompt"                 # Level 2 (alternative)
+cllm --verbose --verbose --verbose "prompt"       # Level 3 (alternative)
 
 # Combination with other flags
 cllm -vv --json-logs "prompt"                    # Verbose JSON output
 cllm -v --debug --log-file debug.log "prompt"   # Verbose + ADR-0009 flags
+cllm -vvv --json-logs --log-file out.json "prompt"  # All features combined
 ```
 
 **Configuration File Support:**
