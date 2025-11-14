@@ -25,6 +25,7 @@ CLLM bridges the gap between ChatGPT GUIs and complex automation by providing tr
   - [Dynamic Context Injection](#dynamic-context-injection)
   - [Variable Expansion](#variable-expansion-with-jinja2)
   - [LLM-Driven Command Execution](#llm-driven-command-execution)
+    - [Advanced Command Definition Syntax](#advanced-command-definition-syntax-adr-0024)
 - [Security Best Practices](#security-best-practices)
 - [Examples](#examples)
 - [CLI Reference](#cli-reference)
@@ -901,6 +902,94 @@ cllm "Analyze the test failures" \
 - Explicit opt-in via `--allow-commands` flag
 - Commands visible in debug output (`--debug`)
 
+### Advanced Command Definition Syntax (ADR-0024)
+
+Define commands with explicit parameter types and hints to help LLMs choose the right arguments (ADR-0024):
+
+**Bracket Syntax for Parameter Types:**
+
+```yaml
+# debug.Cllmfile.yml - With explicit parameter hints
+model: gpt-4
+allow_commands: true
+
+dynamic_commands:
+  available_commands:
+    # Legacy wildcard syntax (still works!)
+    - command: "cat *"
+      description: "Display file contents"
+
+    # New bracket syntax with type hints
+    - command: "cat <path:file to read>"
+      description: "Display file contents of a file"
+
+    # Multiple parameters with semantic hints
+    - command: "grep <regex:search pattern> <path:file path>"
+      description: "Search for text patterns in a file"
+
+    # Network operations
+    - command: "curl -X <string:http method> <url:endpoint url>"
+      description: "Make an HTTP request to an endpoint"
+
+    - command: "curl -X POST <url:api endpoint> --data <json:json payload>"
+      description: "Submit JSON data to an API endpoint"
+
+    # Development tools
+    - command: "git log -n <number:commit count> --oneline"
+      description: "Show recent commits (specify how many)"
+
+    - command: "rg <regex:search pattern> --type <string:file type>"
+      description: "Search code with ripgrep (file types: py, js, go, rust, etc.)"
+```
+
+**Supported Parameter Types:**
+
+| Type | Format | Example | LLM Guidance |
+|------|--------|---------|--------------|
+| String | `<string>` or `<string:hint>` | `<string:username>` | Generic text or specific hint |
+| Number | `<number>` | `<number>` | Numeric value (int or float) |
+| Path | `<path>` or `<path:hint>` | `<path:input file>` | File or directory path |
+| URL | `<url>` or `<url:hint>` | `<url:endpoint>` | HTTP/HTTPS URL |
+| JSON | `<json>` or `<json:hint>` | `<json:request body>` | JSON data structure |
+| Regex | `<regex>` or `<regex:hint>` | `<regex:pattern>` | Regular expression |
+
+**Benefits of Bracket Syntax:**
+
+1. **Precise Parameter Validation**: Automatically rejects commands with wrong parameter counts
+2. **LLM Guidance**: Type hints appear in tool descriptions, helping LLMs select appropriate values
+3. **Better Error Messages**: "Expected 2 parameters, got 1" instead of generic rejection
+4. **Backward Compatible**: Wildcard syntax still works alongside bracket syntax
+5. **Gradual Migration**: Adopt new syntax incrementally, no breaking changes
+
+**Example - LLM sees detailed guidance:**
+
+When you use bracket syntax, the LLM receives structured parameter information:
+
+```
+Available commands:
+- `curl -X <string:http method> <url:endpoint url>`: Make HTTP request
+  Parameters:
+  - string: http method
+  - url: endpoint url
+```
+
+The LLM can now understand it needs an HTTP method (GET, POST, etc.) and a URL, making better decisions about what values to provide.
+
+**Migration Path:**
+
+```bash
+# Phase 1: Start with wildcard syntax
+- command: "cat *"
+
+# Phase 2: Gradually adopt bracket syntax
+- command: "cat <path:file to read>"  # More precise!
+
+# Phase 3: New commands always use bracket syntax
+# (no need to migrate existing wildcards)
+```
+
+See [`examples/configs/adr-0024-migration.Cllmfile.yml`](examples/configs/adr-0024-migration.Cllmfile.yml) for a complete example showing both syntaxes side-by-side.
+
 ## Security Best Practices
 
 CLLM's command execution features (`--exec`, `context_commands`, `--allow-commands`) are powerful but require careful security consideration. Follow these best practices to use them safely.
@@ -1391,6 +1480,7 @@ CLLM's architecture and features are documented in ADRs (Architecture Decision R
 - [ADR-0016](docs/decisions/0016-configurable-cllm-directory-path.md): Configurable .cllm Directory Path (custom config locations)
 - [ADR-0017](docs/decisions/0017-configurable-conversations-path.md): Configurable Conversations Path (independent control over conversation storage)
 - [ADR-0022](docs/decisions/0022-cli-flag-for-system-prompt-override.md): CLI Flag for System Prompt Override (per-command system prompt customization)
+- [ADR-0024](docs/decisions/0024-explicit-command-parameter-syntax.md): Explicit Command Parameter Syntax (bracket syntax with type hints for dynamic commands)
 
 ## Roadmap
 
