@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -36,6 +37,7 @@ from .context import (
     parse_context_commands,
 )
 from .conversation import Conversation, ConversationManager
+from .logging_handler import LoguruVerbosityHandler
 from .init import InitError, initialize, list_available_templates
 from .templates import TemplateError, build_template_context
 from .tools import CommandValidationError
@@ -293,6 +295,222 @@ For full provider list: https://docs.litellm.ai/docs/providers
     parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
 
     return parser
+
+
+def _collect_request_parameters(config: Dict[str, Any], kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    """Build a concise parameter dictionary for logging."""
+    params = {
+        k: v
+        for k, v in kwargs.items()
+        if k not in {"raw_response", "response_format"}
+    }
+    for key in ("temperature", "max_tokens"):
+        if key in config and key not in params:
+            params[key] = config[key]
+    return params
+
+
+def _extract_endpoint_from_kwargs(kwargs: Dict[str, Any]) -> Optional[str]:
+    """Best-effort extraction of the API endpoint from LiteLLM kwargs."""
+    for key in ("api_base", "base_url", "api_endpoint", "endpoint"):
+        if key in kwargs and kwargs[key]:
+            return str(kwargs[key])
+    return None
+
+
+def _serialize_for_logging(payload: Any) -> str:
+    """Serialize arbitrary payloads for TRACE-level logging."""
+
+    def _default(obj: Any) -> Any:
+        if isinstance(obj, set):
+            return list(obj)
+        for attr in ("model_dump", "dict"):
+            if hasattr(obj, attr):
+                try:
+                    return getattr(obj, attr)()
+                except TypeError:
+                    continue
+        if hasattr(obj, "__dict__"):
+            return {
+                key: value
+                for key, value in obj.__dict__.items()
+                if not key.startswith("_")
+            }
+        return str(obj)
+
+    try:
+        return json.dumps(payload, indent=2, default=_default)
+    except (TypeError, ValueError):
+        return repr(payload)
+
+
+def _log_request_summary(
+    handler: "LoguruVerbosityHandler",
+    *,
+    model: str,
+    provider: str,
+    input_tokens: Optional[int],
+    output_tokens: Optional[int],
+    latency_seconds: float,
+    parameters: Optional[Dict[str, Any]],
+    config_sources: Optional[list[str]],
+    endpoint: Optional[str],
+) -> None:
+    """Emit structured logs for the completed request."""
+    if handler.level == 0:
+        return
+
+    handler.print_basic_info(
+        model=model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        provider=provider,
+        latency_seconds=latency_seconds,
+    )
+
+    if handler.level >= 2:
+        handler.print_api_details(
+            endpoint=endpoint,
+            parameters=parameters if parameters else None,
+            status_code=200,
+            config_sources=config_sources if config_sources else None,
+        )
+        handler.log_response_status(200, latency_seconds * 1000)
+
+
+def _log_response_payload_if_needed(
+    handler: "LoguruVerbosityHandler",
+    metadata: Dict[str, Any],
+    fallback: Any,
+) -> None:
+    """Log the raw response payload when TRACE verbosity is enabled."""
+    if handler.level < 3:
+        return
+
+    response_obj = metadata.get("response_object") or fallback
+    if response_obj is None:
+        return
+    handler.log_response_payload(_serialize_for_logging(response_obj))
+
+
+def _preview_text(value: Optional[str], limit: int = 160) -> Optional[str]:
+    """Return a truncated preview string for logging."""
+    if not value:
+        return None
+    value = value.strip()
+    if len(value) <= limit:
+        return value
+    return f"{value[:limit]}..."
+
+
+def _log_event(
+    handler: "LoguruVerbosityHandler",
+    run_id: str,
+    message: str,
+    *,
+    importance: str = "major",
+    extra: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Log an event with consistent metadata (run_id, importance)."""
+    if importance == "minor" and handler.level < 2:
+        return
+
+    payload = {"run_id": run_id}
+    if extra:
+        payload.update({k: v for k, v in extra.items() if v is not None})
+    handler.log_event(message, importance=importance, extra=payload)
+
+
+def _log_minor_event(
+    handler: "LoguruVerbosityHandler",
+    run_id: str,
+    message: str,
+    extra: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Helper to emit minor events only when verbosity >= 2."""
+    _log_event(handler, run_id, message, importance="minor", extra=extra)
+
+
+def _log_response_metadata(
+    handler: "LoguruVerbosityHandler",
+    run_id: str,
+    response_obj: Any,
+) -> None:
+    """Log provider metadata extracted from the raw response object."""
+    if handler.level == 0 or response_obj is None:
+        return
+
+    def _get_attr(obj: Any, attr: str) -> Any:
+        if isinstance(obj, dict):
+            return obj.get(attr)
+        return getattr(obj, attr, None)
+
+    request_id = _get_attr(response_obj, "id")
+    status = _get_attr(response_obj, "status")
+    created = _get_attr(response_obj, "created")
+    system_fingerprint = _get_attr(response_obj, "system_fingerprint")
+    model_name = _get_attr(response_obj, "model")
+
+    finish_reason = None
+    choices = _get_attr(response_obj, "choices")
+    if choices:
+        choice = choices[0]
+        if isinstance(choice, dict):
+            finish_reason = choice.get("finish_reason")
+        else:
+            finish_reason = getattr(choice, "finish_reason", None)
+
+    meta = {
+        "request_id": request_id,
+        "status": status,
+        "model": model_name,
+        "finish_reason": finish_reason,
+        "created": created,
+        "system_fingerprint": system_fingerprint,
+    }
+
+    if any(value is not None for value in meta.values()):
+        _log_minor_event(
+            handler,
+            run_id,
+            "Provider response metadata",
+            extra=meta,
+        )
+
+
+def _determine_setting_source(
+    key: str,
+    cli_args: Dict[str, Any],
+    env_overrides: Dict[str, str],
+    file_config: Dict[str, Any],
+) -> str:
+    """Determine where a setting originated from."""
+    if key in cli_args:
+        return "cli-flag"
+    if key in env_overrides:
+        return f"env:{env_overrides[key]}"
+    if key in file_config:
+        return "config-file"
+    return "default"
+
+
+def _log_setting_resolution(
+    handler: "LoguruVerbosityHandler",
+    run_id: str,
+    *,
+    key: str,
+    value: Any,
+    source: str,
+    importance: str = "minor",
+) -> None:
+    """Log where a configuration setting came from."""
+    _log_event(
+        handler,
+        run_id,
+        "Setting resolved",
+        importance=importance,
+        extra={"setting": key, "value": value, "source": source},
+    )
 
 
 def read_prompt(prompt_arg: Optional[str]) -> str:
@@ -722,78 +940,9 @@ def extract_provider_from_model(model: str) -> str:
     return "unknown"
 
 
-class VerbosityHandler:
-    """
-    Handles verbosity output for different logging levels.
-
-    Implements ADR-0025: Logging Verbosity Levels
-
-    Levels:
-    - 0: No verbose output (default)
-    - 1: Basic info (model, tokens, provider, latency)
-    - 2: API details (endpoint, parameters, response status, config sources)
-    - 3: Full debug (same as --debug, handled by LiteLLM)
-    """
-
-    def __init__(self, level: int = 0):
-        """Initialize with verbosity level."""
-        self.level = min(level, 3)  # Cap at level 3
-
-    def print_basic_info(
-        self,
-        model: str,
-        input_tokens: Optional[int] = None,
-        output_tokens: Optional[int] = None,
-        provider: Optional[str] = None,
-        latency_seconds: Optional[float] = None,
-    ):
-        """Print basic info (level 1)."""
-        if self.level < 1:
-            return
-
-        lines = []
-        lines.append(f"Model: {model}")
-
-        if input_tokens is not None and output_tokens is not None:
-            total = input_tokens + output_tokens
-            lines.append(
-                f"Tokens: {input_tokens} input, {output_tokens} output ({total} total)"
-            )
-
-        if provider:
-            lines.append(f"Provider: {provider}")
-
-        if latency_seconds is not None:
-            lines.append(f"Latency: {latency_seconds:.2f}s")
-
-        for line in lines:
-            print(line, file=sys.stderr)
-
-    def print_api_details(
-        self,
-        endpoint: Optional[str] = None,
-        parameters: Optional[Dict[str, Any]] = None,
-        status_code: Optional[int] = None,
-        config_sources: Optional[list[str]] = None,
-    ):
-        """Print API details (level 2)."""
-        if self.level < 2:
-            return
-
-        if endpoint:
-            print(f"Endpoint: {endpoint}", file=sys.stderr)
-
-        if parameters:
-            params_str = ", ".join(
-                [f"{k}={v}" for k, v in sorted(parameters.items())]
-            )
-            print(f"Parameters: {params_str}", file=sys.stderr)
-
-        if status_code:
-            print(f"Status: {status_code}", file=sys.stderr)
-
-        if config_sources:
-            print(f"Config sources: {', '.join(config_sources)}", file=sys.stderr)
+# VerbosityHandler is now provided by LoguruVerbosityHandler from logging_handler module
+# Maintains backward compatibility with existing code
+VerbosityHandler = LoguruVerbosityHandler
 
 
 def create_init_parser() -> argparse.ArgumentParser:
@@ -998,6 +1147,7 @@ def main():
 
     parser = create_parser()
     args = parser.parse_args()
+    run_id = uuid.uuid4().hex[:8]
 
     try:
         # Load configuration from files (ADR-0016: support custom .cllm path)
@@ -1076,20 +1226,26 @@ def main():
             config["dynamic_commands"] = {}
         config["dynamic_commands"]["require_confirmation"] = True
 
+    env_overrides: Dict[str, str] = {}
+
     # Support environment variables for debug settings (ADR-0009)
     # Precedence: CLI flags > Cllmfile > Environment variables
     if "debug" not in config and os.getenv("CLLM_DEBUG") == "1":
         config["debug"] = True
+        env_overrides["debug"] = "CLLM_DEBUG"
     if "json_logs" not in config and os.getenv("CLLM_JSON_LOGS") == "1":
         config["json_logs"] = True
+        env_overrides["json_logs"] = "CLLM_JSON_LOGS"
     if "log_file" not in config and os.getenv("CLLM_LOG_FILE"):
         config["log_file"] = os.getenv("CLLM_LOG_FILE")
+        env_overrides["log_file"] = "CLLM_LOG_FILE"
 
     # Support environment variable for verbosity level (ADR-0025)
     # Precedence: CLI flags > Cllmfile > Environment variables
     if "verbosity" not in config and os.getenv("CLLM_VERBOSITY"):
         try:
             config["verbosity"] = int(os.getenv("CLLM_VERBOSITY"))
+            env_overrides["verbosity"] = "CLLM_VERBOSITY"
         except ValueError:
             print(
                 f"Warning: Invalid CLLM_VERBOSITY value: {os.getenv('CLLM_VERBOSITY')} (must be 0-3)",
@@ -1106,9 +1262,6 @@ def main():
     if verbosity_level == 3:
         config["debug"] = True
 
-    # Create VerbosityHandler instance for output during execution
-    verbosity_handler = VerbosityHandler(level=verbosity_level)
-
     # Configure debugging and logging (ADR-0009)
     # Do this early so debug output is captured for all operations
     log_file_handle = configure_debugging(
@@ -1117,22 +1270,86 @@ def main():
         log_file=config.get("log_file"),
     )
 
+    # Create VerbosityHandler instance for output during execution
+    verbosity_handler = VerbosityHandler(level=verbosity_level)
+    config_sources_for_logging: Optional[list[str]] = None
+    if verbosity_handler.level >= 2:
+        config_sources_for_logging = get_config_sources(
+            config_name=args.config, cllm_path=args.cllm_path
+        )
+    _log_event(
+        verbosity_handler,
+        run_id,
+        "Configuration merged",
+        extra={
+            "config": args.config or "default",
+            "sources": len(config_sources_for_logging or []),
+            "verbosity": verbosity_level,
+            "json_logs": config.get("json_logs", False),
+        },
+    )
+
+    tracked_settings = [
+        ("model", "major"),
+        ("verbosity", "major"),
+        ("debug", "minor"),
+        ("json_logs", "minor"),
+        ("log_file", "minor"),
+    ]
+    for key, importance in tracked_settings:
+        if key not in config and key != "verbosity":
+            continue
+        value = config.get(key, 0 if key == "verbosity" else None)
+        if value is None and key in {"log_file"}:
+            continue
+        source = _determine_setting_source(key, cli_args, env_overrides, file_config)
+        _log_setting_resolution(
+            verbosity_handler,
+            run_id,
+            key=key,
+            value=value,
+            source=source,
+            importance=importance,
+        )
+
     # Handle JSON schema with proper precedence
     # Precedence: --json-schema > --json-schema-file > json_schema in config > json_schema_file in config
     schema: Optional[Dict[str, Any]] = None
+    schema_source: Optional[str] = None
     try:
         if "json_schema" in config and isinstance(config["json_schema"], str):
             # CLI flag --json-schema (inline JSON string)
             schema = load_json_schema(json.loads(config["json_schema"]))
+            schema_source = (
+                "cli:inline-json" if "json_schema" in cli_args else "config:inline-json"
+            )
         elif "json_schema" in config and isinstance(config["json_schema"], dict):
             # Cllmfile inline schema (already parsed from YAML)
             schema = load_json_schema(config["json_schema"])
+            schema_source = "config:inline-yaml"
         elif "json_schema_file" in config:
             # CLI flag --json-schema-file or Cllmfile json_schema_file
             schema = load_json_schema(config["json_schema_file"])
+            schema_source = (
+                f"cli:file:{config['json_schema_file']}"
+                if "json_schema_file" in cli_args
+                else f"config:file:{config['json_schema_file']}"
+            )
     except (json.JSONDecodeError, ConfigurationError) as e:
         print(f"Schema error: {e}", file=sys.stderr)
         sys.exit(1)
+    if schema is not None:
+        schema_props = schema.get("properties") if isinstance(schema, dict) else None
+        _log_event(
+            verbosity_handler,
+            run_id,
+            "Structured schema enabled",
+            extra={
+                "type": schema.get("type") if isinstance(schema, dict) else "unknown",
+                "property_count": len(schema_props) if isinstance(schema_props, dict) else 0,
+                "source": schema_source,
+            },
+        )
 
     # Initialize conversation manager (needed for conversation commands)
     # ADR-0017: Support custom conversations path with proper precedence
@@ -1154,6 +1371,42 @@ def main():
 
     conversation_manager = ConversationManager(
         cllm_path=cllm_path, conversations_path=conversations_path
+    )
+
+    cllm_path_source = (
+        "--cllm-path"
+        if args.cllm_path
+        else ("env:CLLM_PATH" if os.getenv("CLLM_PATH") else "auto")
+    )
+    _log_event(
+        verbosity_handler,
+        run_id,
+        ".cllm path resolved",
+        extra={
+            "path": str(cllm_path) if cllm_path else "(auto)",
+            "source": cllm_path_source,
+        },
+    )
+    if args.conversations_path:
+        conversations_source = "--conversations-path"
+    elif os.getenv("CLLM_CONVERSATIONS_PATH"):
+        conversations_source = "env:CLLM_CONVERSATIONS_PATH"
+    elif "conversations_path" in config:
+        conversations_source = "config:conversations_path"
+    elif args.cllm_path or os.getenv("CLLM_PATH"):
+        conversations_source = "cllm_path"
+    elif (Path.cwd() / ".cllm").exists():
+        conversations_source = "local:.cllm"
+    else:
+        conversations_source = "home:.cllm"
+    _log_event(
+        verbosity_handler,
+        run_id,
+        "Conversation storage resolved",
+        extra={
+            "path": str(conversation_manager.storage_dir),
+            "source": conversations_source,
+        },
     )
 
     # Handle --list-conversations
@@ -1205,6 +1458,16 @@ def main():
     except TemplateError as e:  # noqa: F823
         print(f"Variable error: {e}", file=sys.stderr)
         sys.exit(1)
+    _log_minor_event(
+        verbosity_handler,
+        run_id,
+        "Template variables prepared",
+        extra={
+            "cli_vars": len(cli_vars),
+            "config_defaults": len(config_vars),
+            "environment_overrides": len(env_vars),
+        },
+    )
 
     # Handle --show-config
     if args.show_config:
@@ -1310,6 +1573,15 @@ def main():
 
     # Read prompt (not needed for --show-config, --list-models, or --validate-schema)
     prompt = read_prompt(args.prompt)
+    _log_event(
+        verbosity_handler,
+        run_id,
+        "Prompt captured",
+        extra={
+            "characters": len(prompt),
+            "multiline": "\n" in prompt,
+        },
+    )
 
     # Parse context commands (ADR-0011, ADR-0021)
     context_commands = []
@@ -1334,6 +1606,12 @@ def main():
                 timeout=10,
             )
             context_commands.append(cli_cmd)
+    _log_minor_event(
+        verbosity_handler,
+        run_id,
+        "Context commands registered",
+        extra={"count": len(context_commands), "disabled": args.no_context_exec},
+    )
 
     # ADR-0021: Context will be handled differently for conversation vs stateless mode
     # - Conversation mode: Execute once during creation, store in system message
@@ -1379,14 +1657,33 @@ def main():
         try:
             if conversation_manager.exists(args.conversation):
                 conversation = conversation_manager.load(args.conversation)
+                _log_event(
+                    verbosity_handler,
+                    run_id,
+                    "Conversation loaded",
+                    extra={
+                        "id": args.conversation,
+                        "messages": len(conversation.get_messages()),
+                    },
+                )
                 # Ensure model matches if conversation has a model set
                 if conversation.model and conversation.model != model:
+                    requested_model = model
                     print(
                         f"Warning: Conversation uses model '{conversation.model}', "
                         f"but you specified '{model}'. Using '{conversation.model}'.",
                         file=sys.stderr,
                     )
                     model = conversation.model
+                    _log_event(
+                        verbosity_handler,
+                        run_id,
+                        "Conversation model enforced",
+                        extra={
+                            "conversation_model": conversation.model,
+                            "requested_model": requested_model,
+                        },
+                    )
             else:
                 # ADR-0018: --read-only requires an existing conversation
                 if args.read_only:
@@ -1443,6 +1740,20 @@ def main():
                         # Format context blocks
                         context_blocks = []
                         for cmd, result in zip(rendered_commands, results):
+                            _log_event(
+                                verbosity_handler,
+                                run_id,
+                                "Context command executed",
+                                importance="minor" if result.success else "major",
+                                extra={
+                                    "name": cmd.name,
+                                    "success": result.success,
+                                    "on_failure": cmd.on_failure.value,
+                                    "has_output": bool(result.output),
+                                    "error": result.error_message,
+                                    "output_preview": _preview_text(result.output),
+                                },
+                            )
                             if result.success:
                                 context_blocks.append(format_context_block(result))
                             else:
@@ -1476,6 +1787,12 @@ def main():
                     model=model,
                     system_message=combined_system_message,
                 )
+                _log_event(
+                    verbosity_handler,
+                    run_id,
+                    "Conversation created",
+                    extra={"id": args.conversation, "model": model},
+                )
         except ValueError as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
@@ -1505,6 +1822,15 @@ def main():
                     parallel=True,
                     template_context=template_context,
                 )
+                _log_minor_event(
+                    verbosity_handler,
+                    run_id,
+                    "Context commands injected",
+                    extra={
+                        "count": len(context_commands),
+                        "mode": "conversation-runtime",
+                    },
+                )
             except RuntimeError as e:
                 print(f"Context error: {e}", file=sys.stderr)
                 sys.exit(1)
@@ -1531,6 +1857,12 @@ def main():
                     parallel=True,
                     template_context=template_context,
                 )
+                _log_minor_event(
+                    verbosity_handler,
+                    run_id,
+                    "Context commands injected",
+                    extra={"count": len(context_commands), "mode": "stateless"},
+                )
             except RuntimeError as e:
                 print(f"Context error: {e}", file=sys.stderr)
                 sys.exit(1)
@@ -1546,6 +1878,8 @@ def main():
 
         messages_for_llm = prompt
 
+    provider = extract_provider_from_model(model)
+
     # Add response_format for structured output if schema is present
     if schema is not None:
         kwargs["response_format"] = {
@@ -1558,6 +1892,9 @@ def main():
 
     if raw_response:
         kwargs["raw_response"] = True
+
+    request_parameter_summary = _collect_request_parameters(config, kwargs)
+    configured_endpoint = _extract_endpoint_from_kwargs(kwargs)
 
     # Check if dynamic command execution is enabled (ADR-0013)
     if config.get("allow_dynamic_commands", False):
@@ -1576,6 +1913,16 @@ def main():
                     file=sys.stderr,
                 )
 
+            _log_event(
+                verbosity_handler,
+                run_id,
+                "Executing dynamic commands",
+                extra={
+                    "model": model,
+                    "provider": provider,
+                    "schema": bool(schema),
+                },
+            )
             # Execute with dynamic commands (ADR-0014: now supports JSON schema)
             # Track latency for verbose output (ADR-0025)
             start_time = time.time()
@@ -1597,7 +1944,6 @@ def main():
             # Print verbose output for dynamic commands (ADR-0025)
             # Note: token counts not available in dynamic command mode
             if verbosity_handler.level > 0:
-                provider = extract_provider_from_model(model)
                 verbosity_handler.print_basic_info(
                     model=model,
                     input_tokens=None,  # Not tracked in dynamic command mode
@@ -1607,6 +1953,12 @@ def main():
                 )
 
             print(response)
+            _log_event(
+                verbosity_handler,
+                run_id,
+                "Dynamic commands complete",
+                extra={"latency_ms": int(latency_seconds * 1000)},
+            )
 
             # Save conversation if in conversation mode (ADR-0018: skip if read-only)
             if conversation is not None and not args.read_only:
@@ -1619,13 +1971,24 @@ def main():
                 except Exception:
                     pass  # Token counting is optional
                 conversation_manager.save(conversation)
+                _log_event(
+                    verbosity_handler,
+                    run_id,
+                    "Conversation updated",
+                    extra={
+                        "id": conversation.conversation_id,
+                        "total_tokens": getattr(conversation, "total_tokens", None),
+                    },
+                )
 
         except AgentExecutionError as e:
+            verbosity_handler.log_exception(e)
             print(f"Agent error: {e}", file=sys.stderr)
             if log_file_handle:
                 log_file_handle.close()
             sys.exit(1)
         except CommandValidationError as e:
+            verbosity_handler.log_exception(e)
             print(f"Command validation error: {e}", file=sys.stderr)
             if log_file_handle:
                 log_file_handle.close()
@@ -1639,6 +2002,28 @@ def main():
             if log_file_handle:
                 log_file_handle.close()
         return
+
+    if verbosity_handler.level >= 3 and messages_for_llm is not None:
+        request_payload = {"model": model, "messages": messages_for_llm}
+        if kwargs:
+            request_payload["params"] = kwargs
+        verbosity_handler.log_request_payload(
+            _serialize_for_logging(request_payload)
+        )
+
+    _log_event(
+        verbosity_handler,
+        run_id,
+        "Sending LLM request",
+        extra={
+            "model": model,
+            "provider": provider,
+            "stream": bool(stream),
+            "schema": bool(schema),
+            "raw_response": raw_response,
+            "conversation": args.conversation is not None,
+        },
+    )
 
     try:
         # Make the request
@@ -1654,36 +2039,34 @@ def main():
 
             # Print verbose output (ADR-0025)
             if verbosity_handler.level > 0:
-                provider = extract_provider_from_model(model)
-                # Extract parameters that were passed to the client
-                params_dict = {
-                    k: v for k, v in kwargs.items()
-                    if k not in ["raw_response", "response_format"]
-                }
-                # Add temperature and max_tokens if present in config
-                if "temperature" in config:
-                    params_dict["temperature"] = config["temperature"]
-                if "max_tokens" in config:
-                    params_dict["max_tokens"] = config["max_tokens"]
-
-                verbosity_handler.print_basic_info(
+                _log_request_summary(
+                    verbosity_handler,
                     model=model,
+                    provider=provider,
                     input_tokens=metadata.get("input_tokens"),
                     output_tokens=metadata.get("output_tokens"),
-                    provider=provider,
                     latency_seconds=latency_seconds,
+                    parameters=(
+                        request_parameter_summary if request_parameter_summary else None
+                    ),
+                    config_sources=config_sources_for_logging,
+                    endpoint=configured_endpoint,
                 )
-
-                # Get config sources for level 2
-                if verbosity_handler.level >= 2:
-                    config_sources = get_config_sources(
-                        config_name=args.config, cllm_path=args.cllm_path
-                    )
-                    verbosity_handler.print_api_details(
-                        parameters=params_dict if params_dict else None,
-                        status_code=200,  # Assume success if no error
-                        config_sources=config_sources if config_sources else None,
-                    )
+            _log_response_payload_if_needed(
+                verbosity_handler, metadata, complete_response
+            )
+            _log_response_metadata(
+                verbosity_handler, run_id, metadata.get("response_object") or complete_response
+            )
+            _log_event(
+                verbosity_handler,
+                run_id,
+                "LLM response completed",
+                extra={
+                    "mode": "stream",
+                    "latency_ms": int(latency_seconds * 1000),
+                },
+            )
 
             # Validate against schema if present
             if schema is not None:
@@ -1698,6 +2081,13 @@ def main():
                 except ConfigurationError as e:
                     print(f"\nValidation error: {e}", file=sys.stderr)
                     sys.exit(1)
+                else:
+                    _log_minor_event(
+                        verbosity_handler,
+                        run_id,
+                        "Schema validation passed",
+                        extra={"mode": "stream"},
+                    )
 
             # Save conversation if in conversation mode (ADR-0018: skip if read-only)
             if conversation is not None and not args.read_only:
@@ -1710,6 +2100,15 @@ def main():
                 except Exception:
                     pass  # Token counting is optional
                 conversation_manager.save(conversation)
+                _log_event(
+                    verbosity_handler,
+                    run_id,
+                    "Conversation updated",
+                    extra={
+                        "id": conversation.conversation_id,
+                        "total_tokens": getattr(conversation, "total_tokens", None),
+                    },
+                )
         else:
             # Non-streaming mode
             # Track latency for verbose output (ADR-0025)
@@ -1721,36 +2120,32 @@ def main():
 
             # Print verbose output (ADR-0025)
             if verbosity_handler.level > 0:
-                provider = extract_provider_from_model(model)
-                # Extract parameters that were passed to the client
-                params_dict = {
-                    k: v for k, v in kwargs.items()
-                    if k not in ["raw_response", "response_format"]
-                }
-                # Add temperature and max_tokens if present in config
-                if "temperature" in config:
-                    params_dict["temperature"] = config["temperature"]
-                if "max_tokens" in config:
-                    params_dict["max_tokens"] = config["max_tokens"]
-
-                verbosity_handler.print_basic_info(
+                _log_request_summary(
+                    verbosity_handler,
                     model=model,
+                    provider=provider,
                     input_tokens=metadata.get("input_tokens"),
                     output_tokens=metadata.get("output_tokens"),
-                    provider=provider,
                     latency_seconds=latency_seconds,
+                    parameters=(
+                        request_parameter_summary if request_parameter_summary else None
+                    ),
+                    config_sources=config_sources_for_logging,
+                    endpoint=configured_endpoint,
                 )
-
-                # Get config sources for level 2
-                if verbosity_handler.level >= 2:
-                    config_sources = get_config_sources(
-                        config_name=args.config, cllm_path=args.cllm_path
-                    )
-                    verbosity_handler.print_api_details(
-                        parameters=params_dict if params_dict else None,
-                        status_code=200,  # Assume success if no error
-                        config_sources=config_sources if config_sources else None,
-                    )
+            _log_response_payload_if_needed(verbosity_handler, metadata, response)
+            _log_response_metadata(
+                verbosity_handler, run_id, metadata.get("response_object")
+            )
+            _log_event(
+                verbosity_handler,
+                run_id,
+                "LLM response completed",
+                extra={
+                    "mode": "complete",
+                    "latency_ms": int(latency_seconds * 1000),
+                },
+            )
 
             if raw_response:
                 print(json.dumps(response, indent=2))
@@ -1770,6 +2165,13 @@ def main():
                         print(f"Validation error: {e}", file=sys.stderr)
                         print(f"Response: {response}", file=sys.stderr)
                         sys.exit(1)
+                    else:
+                        _log_minor_event(
+                            verbosity_handler,
+                            run_id,
+                            "Schema validation passed",
+                            extra={"mode": "complete"},
+                        )
 
                 print(response)
 
@@ -1784,6 +2186,17 @@ def main():
                     except Exception:
                         pass  # Token counting is optional
                     conversation_manager.save(conversation)
+                    _log_event(
+                        verbosity_handler,
+                        run_id,
+                        "Conversation updated",
+                        extra={
+                            "id": conversation.conversation_id,
+                            "total_tokens": getattr(
+                                conversation, "total_tokens", None
+                            ),
+                        },
+                    )
 
     except KeyboardInterrupt:
         print("\n\nInterrupted by user.", file=sys.stderr)
@@ -1792,6 +2205,7 @@ def main():
             log_file_handle.close()
         sys.exit(130)
     except Exception as e:
+        verbosity_handler.log_exception(e)
         print(f"Error: {e}", file=sys.stderr)
         # Close log file if it was opened
         if log_file_handle:

@@ -645,6 +645,206 @@ class TestVerbosity:
         # Verify debug mode was automatically enabled
         assert mock_litellm.set_verbose is True
 
+    @patch("sys.argv", ["cllm", "-vvv", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.litellm")
+    @patch("cllm.cli.LoguruVerbosityHandler.log_response_payload")
+    @patch("cllm.cli.LoguruVerbosityHandler.log_request_payload")
+    def test_cli_verbose_level_3_logs_payloads(
+        self,
+        mock_log_request,
+        mock_log_response,
+        mock_litellm,
+        mock_load_config,
+        mock_client,
+        mock_isatty,
+    ):
+        """Test that -vvv logs request and response payloads."""
+        from cllm.cli import main
+
+        # Mock the client to avoid actual API calls
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {
+                "input_tokens": 10,
+                "output_tokens": 20,
+                "response_object": {"choices": []},
+            },
+        )
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        assert mock_log_request.called
+        assert mock_log_response.called
+
+    @patch("sys.argv", ["cllm", "-v", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.LoguruVerbosityHandler.log_event")
+    def test_cli_verbose_level_1_logs_only_major_events(
+        self,
+        mock_log_event,
+        mock_load_config,
+        mock_client,
+        mock_isatty,
+    ):
+        """Test that -v logs only major events."""
+        from cllm.cli import main
+
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {
+                "input_tokens": 10,
+                "output_tokens": 20,
+                "response_object": {"choices": []},
+            },
+        )
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        assert mock_log_event.call_count > 0
+        for call in mock_log_event.call_args_list:
+            assert call.kwargs.get("importance", "major") != "minor"
+
+    @patch("sys.argv", ["cllm", "-vv", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.LoguruVerbosityHandler.log_event")
+    def test_cli_verbose_level_2_logs_minor_events(
+        self,
+        mock_log_event,
+        mock_load_config,
+        mock_client,
+        mock_isatty,
+    ):
+        """Test that -vv logs both major and minor events."""
+        from cllm.cli import main
+
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {
+                "input_tokens": 10,
+                "output_tokens": 20,
+                "response_object": {"choices": []},
+            },
+        )
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        assert mock_log_event.call_count > 0
+        assert any(
+            call.kwargs.get("importance") == "minor"
+            for call in mock_log_event.call_args_list
+        )
+
+    @patch("sys.argv", ["cllm", "-v", "--model", "gpt-4", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.LoguruVerbosityHandler.log_event")
+    def test_setting_resolution_logs_cli_source(
+        self,
+        mock_log_event,
+        mock_load_config,
+        mock_client,
+        mock_isatty,
+    ):
+        """Test setting resolution event captures CLI source."""
+        from cllm.cli import main
+
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {
+                "input_tokens": 10,
+                "output_tokens": 20,
+                "response_object": {"choices": []},
+            },
+        )
+        mock_client.return_value = mock_instance
+
+        try:
+            main()
+        except SystemExit:
+            pass
+
+        setting_events = [
+            call.kwargs.get("extra", {})
+            for call in mock_log_event.call_args_list
+            if call.args and call.args[0] == "Setting resolved"
+        ]
+        assert any(
+            event.get("setting") == "model" and event.get("source") == "cli-flag"
+            for event in setting_events
+        )
+
+    @patch("sys.argv", ["cllm", "-vv", "test prompt"])
+    @patch("sys.stdin.isatty", return_value=True)
+    @patch("cllm.cli.LLMClient")
+    @patch("cllm.cli.load_config", return_value={})
+    @patch("cllm.cli.LoguruVerbosityHandler.log_event")
+    def test_setting_resolution_logs_env_source_for_debug(
+        self,
+        mock_log_event,
+        mock_load_config,
+        mock_client,
+        mock_isatty,
+    ):
+        """Test setting resolution event captures environment source."""
+        from cllm.cli import main
+
+        mock_instance = MagicMock()
+        mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {
+                "input_tokens": 10,
+                "output_tokens": 20,
+                "response_object": {"choices": []},
+            },
+        )
+        mock_client.return_value = mock_instance
+
+        with patch.dict(os.environ, {"CLLM_DEBUG": "1"}):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+        setting_events = [
+            call.kwargs.get("extra", {})
+            for call in mock_log_event.call_args_list
+            if call.args and call.args[0] == "Setting resolved"
+        ]
+        assert any(
+            event.get("setting") == "debug"
+                and event.get("source") == "env:CLLM_DEBUG"
+            for event in setting_events
+        )
+
     @patch("sys.argv", ["cllm", "--verbose", "--verbose", "test prompt"])
     @patch("sys.stdin.isatty", return_value=True)
     @patch("cllm.cli.LLMClient")
