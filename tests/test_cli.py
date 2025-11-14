@@ -329,6 +329,7 @@ class TestDebugging:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client.return_value = mock_instance
 
         try:
@@ -355,6 +356,7 @@ class TestDebugging:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client.return_value = mock_instance
 
         try:
@@ -382,6 +384,7 @@ class TestDebugging:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
+                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -410,6 +413,7 @@ class TestDebugging:
             # Mock the client to avoid actual API calls
             mock_instance = MagicMock()
             mock_instance.complete.return_value = "test response"
+            mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
             mock_client.return_value = mock_instance
 
             try:
@@ -433,6 +437,7 @@ class TestDebugging:
             # Mock the client to avoid actual API calls
             mock_instance = MagicMock()
             mock_instance.complete.return_value = "test response"
+            mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
             mock_client.return_value = mock_instance
 
             try:
@@ -456,6 +461,7 @@ class TestDebugging:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
+                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -479,6 +485,7 @@ class TestDebugging:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
+                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -578,6 +585,7 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client.return_value = mock_instance
 
         try:
@@ -601,6 +609,7 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client.return_value = mock_instance
 
         try:
@@ -625,6 +634,7 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client.return_value = mock_instance
 
         try:
@@ -648,6 +658,7 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client.return_value = mock_instance
 
         try:
@@ -673,6 +684,7 @@ class TestVerbosity:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
+                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -698,6 +710,7 @@ class TestVerbosity:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
+                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -729,6 +742,7 @@ class TestVerbosity:
                         # Mock the client to avoid actual API calls
                         mock_instance = MagicMock()
                         mock_instance.complete.return_value = "test response"
+                        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                         mock_client.return_value = mock_instance
 
                         try:
@@ -755,6 +769,7 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client.return_value = mock_instance
 
         try:
@@ -779,6 +794,7 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
+        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client.return_value = mock_instance
 
         try:
@@ -804,6 +820,7 @@ class TestContextInjection:
             # Mock the client to capture what prompt was sent
             mock_instance = MagicMock()
             mock_instance.complete.return_value = "response"
+            mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
             mock_client.return_value = mock_instance
 
             try:
@@ -812,8 +829,8 @@ class TestContextInjection:
                 pass
 
             # Verify complete was called with context-injected prompt
-            assert mock_instance.complete.called
-            call_args = mock_instance.complete.call_args
+            assert mock_instance.complete_with_metadata.called
+            call_args = mock_instance.complete_with_metadata.call_args
             messages = call_args[1]["messages"]
 
             # The prompt should contain context block
@@ -842,6 +859,7 @@ class TestContextInjection:
             # Mock the client
             mock_instance = MagicMock()
             mock_instance.complete.return_value = "response"
+            mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
             mock_client.return_value = mock_instance
 
             try:
@@ -850,7 +868,7 @@ class TestContextInjection:
                 pass
 
             # Verify both context blocks are present
-            call_args = mock_instance.complete.call_args
+            call_args = mock_instance.complete_with_metadata.call_args
             messages = call_args[1]["messages"]
 
             assert "--- Context: CLI Command 1 ---" in messages
@@ -875,6 +893,7 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
+                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -883,7 +902,7 @@ class TestContextInjection:
                     pass
 
                 # Verify context blocks from config
-                call_args = mock_instance.complete.call_args
+                call_args = mock_instance.complete_with_metadata.call_args
                 messages = call_args[1]["messages"]
 
                 assert "--- Context: Git Status ---" in messages
@@ -906,6 +925,7 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
+                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -914,7 +934,7 @@ class TestContextInjection:
                     pass
 
                 # Verify context was NOT injected
-                call_args = mock_instance.complete.call_args
+                call_args = mock_instance.complete_with_metadata.call_args
                 messages = call_args[1]["messages"]
 
                 assert "Should Be Skipped" not in messages
@@ -936,6 +956,7 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
+                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -944,7 +965,7 @@ class TestContextInjection:
                     pass
 
                 # Verify both are present
-                call_args = mock_instance.complete.call_args
+                call_args = mock_instance.complete_with_metadata.call_args
                 messages = call_args[1]["messages"]
 
                 assert "--- Context: Config Cmd ---" in messages
@@ -976,6 +997,7 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
+                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -984,7 +1006,7 @@ class TestContextInjection:
                     pass
 
                 # Verify error block is included
-                call_args = mock_instance.complete.call_args
+                call_args = mock_instance.complete_with_metadata.call_args
                 messages = call_args[1]["messages"]
 
                 assert "--- Context Error: Failing Cmd ---" in messages
@@ -1009,6 +1031,7 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
+                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
                 mock_client.return_value = mock_instance
 
                 try:
@@ -1017,7 +1040,7 @@ class TestContextInjection:
                     pass
 
                 # Verify error block is NOT included
-                call_args = mock_instance.complete.call_args
+                call_args = mock_instance.complete_with_metadata.call_args
                 messages = call_args[1]["messages"]
 
                 assert "Failing Cmd" not in messages
@@ -1342,6 +1365,7 @@ class TestReadOnlyConversation:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Read-only response"
+        mock_instance.complete_with_metadata.return_value = ("Read-only response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_instance.count_tokens.return_value = 100
         mock_client.return_value = mock_instance
 
@@ -1364,7 +1388,7 @@ class TestReadOnlyConversation:
                 pass
 
             # Verify response was generated
-            mock_instance.complete.assert_called_once()
+            mock_instance.complete_with_metadata.assert_called_once()
 
             # Verify conversation file is unchanged
             saved_conv = json.loads(conv_file.read_text())
@@ -1404,6 +1428,7 @@ class TestReadOnlyConversation:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Response"
+        mock_instance.complete_with_metadata.return_value = ("Response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_instance.count_tokens.return_value = 100
         mock_client.return_value = mock_instance
 
@@ -1462,6 +1487,7 @@ class TestReadOnlyConversation:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "New response"
+        mock_instance.complete_with_metadata.return_value = ("New response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_instance.count_tokens.return_value = 150
         mock_client.return_value = mock_instance
 
@@ -1483,7 +1509,7 @@ class TestReadOnlyConversation:
                 pass
 
             # Verify response was generated
-            mock_instance.complete.assert_called_once()
+            mock_instance.complete_with_metadata.assert_called_once()
 
             # Verify conversation WAS updated
             saved_conv = json.loads(conv_file.read_text())
@@ -1560,6 +1586,7 @@ class TestReadOnlyConversation:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Review result"
+        mock_instance.complete_with_metadata.return_value = ("Review result", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_instance.count_tokens.return_value = 200
         mock_client.return_value = mock_instance
 
@@ -1582,7 +1609,7 @@ class TestReadOnlyConversation:
                 pass
 
             # Verify the LLM was called with full conversation history as context
-            call_args = mock_instance.complete.call_args
+            call_args = mock_instance.complete_with_metadata.call_args
             messages = call_args[1]["messages"]
 
             # Should contain all original messages plus new one
@@ -1623,6 +1650,7 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "I'll help you with that!"
+        mock_instance.complete_with_metadata.return_value = ("I'll help you with that!", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_instance.count_tokens.return_value = 50
         mock_client.return_value = mock_instance
 
@@ -1697,6 +1725,7 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Second response"
+        mock_instance.complete_with_metadata.return_value = ("Second response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_instance.count_tokens.return_value = 100
         mock_client.return_value = mock_instance
 
@@ -1766,6 +1795,7 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Sure thing!"
+        mock_instance.complete_with_metadata.return_value = ("Sure thing!", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_instance.count_tokens.return_value = 50
         mock_client.return_value = mock_instance
 
@@ -1787,7 +1817,7 @@ class TestSystemMessageInConversations:
                 pass
 
             # Verify the LLM was called with system message injected at runtime
-            call_args = mock_instance.complete.call_args
+            call_args = mock_instance.complete_with_metadata.call_args
             messages = call_args[1]["messages"]
 
             # First message should be system (injected at runtime)
@@ -1820,6 +1850,7 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Response without system message"
+        mock_instance.complete_with_metadata.return_value = ("Response without system message", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_instance.count_tokens.return_value = 40
         mock_client.return_value = mock_instance
 
@@ -1878,6 +1909,7 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Arrr, matey!"
+        mock_instance.complete_with_metadata.return_value = ("Arrr, matey!", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_instance.count_tokens.return_value = 60
         mock_client.return_value = mock_instance
 
@@ -1899,7 +1931,7 @@ class TestSystemMessageInConversations:
                 pass
 
             # Verify the LLM was called with system message
-            call_args = mock_instance.complete.call_args
+            call_args = mock_instance.complete_with_metadata.call_args
             messages = call_args[1]["messages"]
 
             # First message should be system
@@ -1925,6 +1957,7 @@ class TestSystemPromptFlags:
         """Test that --system flag overrides default_system_message from config."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
+        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client_class.return_value = mock_instance
 
         # Config has a default_system_message, but --system should override
@@ -1947,7 +1980,7 @@ class TestSystemPromptFlags:
                 pass
 
             # Verify the LLM was called with the CLI system prompt, not config
-            call_args = mock_instance.complete.call_args
+            call_args = mock_instance.complete_with_metadata.call_args
             messages = call_args[1]["messages"]
 
             # Should have system message from --system flag
@@ -1963,6 +1996,7 @@ class TestSystemPromptFlags:
         """Test that --system-file loads system prompt from file."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
+        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client_class.return_value = mock_instance
 
         # Create a temporary system prompt file
@@ -1984,7 +2018,7 @@ class TestSystemPromptFlags:
                 pass
 
             # Verify the LLM was called with the system prompt from file
-            call_args = mock_instance.complete.call_args
+            call_args = mock_instance.complete_with_metadata.call_args
             messages = call_args[1]["messages"]
 
             assert "You are an expert in Python programming." in str(messages)
@@ -1998,6 +2032,7 @@ class TestSystemPromptFlags:
         """Test that --system-file overrides default_system_message from config."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
+        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client_class.return_value = mock_instance
 
         # Config has a default_system_message
@@ -2024,7 +2059,7 @@ class TestSystemPromptFlags:
                 pass
 
             # Verify --system-file overrode config
-            call_args = mock_instance.complete.call_args
+            call_args = mock_instance.complete_with_metadata.call_args
             messages = call_args[1]["messages"]
 
             assert "debugging expert" in str(messages)
@@ -2039,6 +2074,7 @@ class TestSystemPromptFlags:
         """Test that --system takes precedence over --system-file when both provided."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
+        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client_class.return_value = mock_instance
 
         # Create system prompt file
@@ -2062,7 +2098,7 @@ class TestSystemPromptFlags:
                 pass
 
             # Verify --system was used (not --system-file)
-            call_args = mock_instance.complete.call_args
+            call_args = mock_instance.complete_with_metadata.call_args
             messages = call_args[1]["messages"]
 
             assert "From CLI" in str(messages)
@@ -2098,6 +2134,7 @@ class TestSystemPromptFlags:
         """Test that --system-file with empty file produces warning."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
+        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
         mock_client_class.return_value = mock_instance
 
         # Create empty file

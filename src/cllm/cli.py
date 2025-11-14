@@ -12,6 +12,7 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -649,6 +650,76 @@ def configure_debugging(
         litellm.json_logs = True
 
     return log_file_handle
+
+
+def extract_provider_from_model(model: str) -> str:
+    """
+    Extract provider name from model identifier.
+
+    Handles various LiteLLM model formats:
+    - Direct provider name: "gpt-4", "claude-3-opus-20240229", "gemini-pro"
+    - Prefix format: "openai/gpt-4", "anthropic/claude-3"
+    - Custom/Ollama format: "ollama/neural-chat"
+
+    Args:
+        model: Model identifier
+
+    Returns:
+        Provider name in lowercase
+    """
+    # Handle prefix format (openai/gpt-4 -> openai)
+    if "/" in model:
+        return model.split("/")[0].lower()
+
+    # Handle model-based detection
+    model_lower = model.lower()
+
+    # OpenAI
+    if model_lower.startswith("gpt-"):
+        return "openai"
+
+    # Anthropic
+    if model_lower.startswith("claude-"):
+        return "anthropic"
+
+    # Google Gemini
+    if model_lower.startswith("gemini"):
+        return "google"
+
+    # Groq
+    if "groq" in model_lower:
+        return "groq"
+
+    # Cohere
+    if "command-" in model_lower or "cohere" in model_lower:
+        return "cohere"
+
+    # Mistral
+    if "mistral" in model_lower:
+        return "mistral"
+
+    # Meta Llama
+    if "llama" in model_lower:
+        return "meta"
+
+    # DeepSeek
+    if "deepseek" in model_lower:
+        return "deepseek"
+
+    # AWS Bedrock
+    if "bedrock" in model_lower:
+        return "aws"
+
+    # Azure
+    if "azure" in model_lower:
+        return "azure"
+
+    # Default: return the model prefix if it looks like it
+    parts = model.split("-")
+    if parts:
+        return parts[0].lower()
+
+    return "unknown"
 
 
 class VerbosityHandler:
@@ -1506,6 +1577,8 @@ def main():
                 )
 
             # Execute with dynamic commands (ADR-0014: now supports JSON schema)
+            # Track latency for verbose output (ADR-0025)
+            start_time = time.time()
             response = execute_with_dynamic_commands(
                 prompt=(
                     prompt
@@ -1519,6 +1592,19 @@ def main():
                 verbose=config.get("debug", False),
                 schema=schema,  # ADR-0014: Pass schema for structured output
             )
+            latency_seconds = time.time() - start_time
+
+            # Print verbose output for dynamic commands (ADR-0025)
+            # Note: token counts not available in dynamic command mode
+            if verbosity_handler.level > 0:
+                provider = extract_provider_from_model(model)
+                verbosity_handler.print_basic_info(
+                    model=model,
+                    input_tokens=None,  # Not tracked in dynamic command mode
+                    output_tokens=None,
+                    provider=provider,
+                    latency_seconds=latency_seconds,
+                )
 
             print(response)
 
@@ -1559,9 +1645,45 @@ def main():
         if stream:
             # Streaming mode - client.complete() now handles display internally (ADR-0010)
             # and returns the complete response
-            complete_response = client.complete(
+            # Track latency for verbose output (ADR-0025)
+            start_time = time.time()
+            complete_response, metadata = client.complete_with_metadata(
                 model=model, messages=messages_for_llm, stream=True, **kwargs
             )
+            latency_seconds = time.time() - start_time
+
+            # Print verbose output (ADR-0025)
+            if verbosity_handler.level > 0:
+                provider = extract_provider_from_model(model)
+                # Extract parameters that were passed to the client
+                params_dict = {
+                    k: v for k, v in kwargs.items()
+                    if k not in ["raw_response", "response_format"]
+                }
+                # Add temperature and max_tokens if present in config
+                if "temperature" in config:
+                    params_dict["temperature"] = config["temperature"]
+                if "max_tokens" in config:
+                    params_dict["max_tokens"] = config["max_tokens"]
+
+                verbosity_handler.print_basic_info(
+                    model=model,
+                    input_tokens=metadata.get("input_tokens"),
+                    output_tokens=metadata.get("output_tokens"),
+                    provider=provider,
+                    latency_seconds=latency_seconds,
+                )
+
+                # Get config sources for level 2
+                if verbosity_handler.level >= 2:
+                    config_sources = get_config_sources(
+                        config_name=args.config, cllm_path=args.cllm_path
+                    )
+                    verbosity_handler.print_api_details(
+                        parameters=params_dict if params_dict else None,
+                        status_code=200,  # Assume success if no error
+                        config_sources=config_sources if config_sources else None,
+                    )
 
             # Validate against schema if present
             if schema is not None:
@@ -1590,7 +1712,45 @@ def main():
                 conversation_manager.save(conversation)
         else:
             # Non-streaming mode
-            response = client.complete(model=model, messages=messages_for_llm, **kwargs)
+            # Track latency for verbose output (ADR-0025)
+            start_time = time.time()
+            response, metadata = client.complete_with_metadata(
+                model=model, messages=messages_for_llm, **kwargs
+            )
+            latency_seconds = time.time() - start_time
+
+            # Print verbose output (ADR-0025)
+            if verbosity_handler.level > 0:
+                provider = extract_provider_from_model(model)
+                # Extract parameters that were passed to the client
+                params_dict = {
+                    k: v for k, v in kwargs.items()
+                    if k not in ["raw_response", "response_format"]
+                }
+                # Add temperature and max_tokens if present in config
+                if "temperature" in config:
+                    params_dict["temperature"] = config["temperature"]
+                if "max_tokens" in config:
+                    params_dict["max_tokens"] = config["max_tokens"]
+
+                verbosity_handler.print_basic_info(
+                    model=model,
+                    input_tokens=metadata.get("input_tokens"),
+                    output_tokens=metadata.get("output_tokens"),
+                    provider=provider,
+                    latency_seconds=latency_seconds,
+                )
+
+                # Get config sources for level 2
+                if verbosity_handler.level >= 2:
+                    config_sources = get_config_sources(
+                        config_name=args.config, cllm_path=args.cllm_path
+                    )
+                    verbosity_handler.print_api_details(
+                        parameters=params_dict if params_dict else None,
+                        status_code=200,  # Assume success if no error
+                        config_sources=config_sources if config_sources else None,
+                    )
 
             if raw_response:
                 print(json.dumps(response, indent=2))

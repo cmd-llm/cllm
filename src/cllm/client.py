@@ -8,7 +8,7 @@ using the OpenAI-compatible API format.
 
 import asyncio
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from litellm import acompletion, completion, stream_chunk_builder, token_counter
 
@@ -211,6 +211,123 @@ class LLMClient:
 
         # Extract and return the text content
         return response["choices"][0]["message"]["content"]
+
+    def complete_with_metadata(
+        self,
+        model: str,
+        messages: Union[str, List[Dict[str, str]]],
+        stream: bool = False,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        **kwargs: Any
+    ) -> Tuple[str, Dict[str, Any]]:
+        """
+        Generate a completion and return both the response and metadata.
+
+        This is useful for extracting token usage, timing, and other metadata
+        for verbose output (ADR-0025).
+
+        Args:
+            Same as complete()
+
+        Returns:
+            Tuple of (response_text, metadata_dict)
+            where metadata_dict contains:
+            - input_tokens: Number of input tokens
+            - output_tokens: Number of output tokens
+            - response_object: Full LiteLLM response object
+        """
+        # Convert string prompt to messages format
+        if isinstance(messages, str):
+            messages = [{"role": "user", "content": messages}]
+
+        # Build parameters
+        params = {
+            "model": model,
+            "messages": messages,
+        }
+
+        if temperature is not None:
+            params["temperature"] = temperature
+        if max_tokens is not None:
+            params["max_tokens"] = max_tokens
+
+        # Add any additional parameters (excluding raw_response)
+        params.update(kwargs)
+        params.pop("raw_response", None)
+
+        # Metadata dictionary
+        metadata: Dict[str, Any] = {
+            "input_tokens": None,
+            "output_tokens": None,
+            "response_object": None,
+        }
+
+        # Handle streaming
+        if stream:
+
+            async def _async_stream():
+                response = await acompletion(**params, stream=True)
+                chunks = []
+                async for chunk in response:
+                    chunks.append(chunk)
+                    content = (
+                        chunk.get("choices", [{}])[0].get("delta", {}).get("content")
+                        or ""
+                    )
+                    if content:
+                        print(content, end="", flush=True)
+                print()  # Final newline
+                complete_response = stream_chunk_builder(chunks, messages=messages)
+                return complete_response
+
+            response_obj = asyncio.run(_async_stream())
+            metadata["response_object"] = response_obj
+
+            # Extract token usage if available
+            if hasattr(response_obj, "usage"):
+                metadata["input_tokens"] = getattr(
+                    response_obj.usage, "prompt_tokens", None
+                )
+                metadata["output_tokens"] = getattr(
+                    response_obj.usage, "completion_tokens", None
+                )
+            elif isinstance(response_obj, dict) and "usage" in response_obj:
+                metadata["input_tokens"] = response_obj["usage"].get("prompt_tokens")
+                metadata["output_tokens"] = response_obj["usage"].get(
+                    "completion_tokens"
+                )
+
+            content = (
+                response_obj.choices[0].message.content
+                if hasattr(response_obj, "choices")
+                else response_obj["choices"][0]["message"]["content"]
+            )
+            return content, metadata
+
+        # Non-streaming path
+        response = completion(**params, stream=False)
+        metadata["response_object"] = response
+
+        # Extract token usage
+        if isinstance(response, dict) and "usage" in response:
+            metadata["input_tokens"] = response["usage"].get("prompt_tokens")
+            metadata["output_tokens"] = response["usage"].get("completion_tokens")
+        elif hasattr(response, "usage"):
+            metadata["input_tokens"] = getattr(
+                response.usage, "prompt_tokens", None
+            )
+            metadata["output_tokens"] = getattr(
+                response.usage, "completion_tokens", None
+            )
+
+        # Extract and return the text content
+        if isinstance(response, dict):
+            content = response["choices"][0]["message"]["content"]
+        else:
+            content = response.choices[0].message.content
+
+        return content, metadata
 
     def count_tokens(
         self, model: str, messages: Union[str, List[Dict[str, str]]]
