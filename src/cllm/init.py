@@ -12,12 +12,7 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
-try:
-    # Python 3.9+
-    from importlib.resources import files
-except ImportError:
-    # Fallback for Python 3.8
-    from importlib_resources import files
+from importlib.resources import files  # nosemgrep: python.lang.compatibility.python37.python37-compatibility-importlib2
 
 
 class InitError(Exception):
