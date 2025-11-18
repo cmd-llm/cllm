@@ -1,6 +1,6 @@
 [project]
 name = "cllm"
-version = "0.1.6"
+version = "0.1.7"
 description = "A bash-centric command-line interface for interacting with large language models"
 readme = "README.md"
 requires-python = ">=3.9"

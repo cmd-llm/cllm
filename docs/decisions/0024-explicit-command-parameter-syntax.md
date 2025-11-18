@@ -86,6 +86,7 @@ Success criteria for this ADR:
 Current implementation using simple glob patterns.
 
 Example:
+
 ```yaml
 available_commands:
   - command: "cat *"
@@ -106,6 +107,7 @@ available_commands:
 New explicit syntax with required parameter declarations, no wildcard support.
 
 Example:
+
 ```yaml
 available_commands:
   - command: "cat <path:file to read>"
@@ -128,6 +130,7 @@ available_commands:
 Support both wildcard patterns and explicit bracket syntax simultaneously.
 
 Example:
+
 ```yaml
 available_commands:
   # Legacy wildcard syntax (still supported)
@@ -144,6 +147,7 @@ available_commands:
 ```
 
 Parameter type system:
+
 - `<string>` - General text argument (most flexible)
 - `<string:hint>` - Text with semantic hint for LLM guidance
 - `<number>` - Integer or float value
@@ -153,6 +157,7 @@ Parameter type system:
 - `<regex>` - Regular expression pattern
 
 Matching rules:
+
 1. Bracket syntax matches arguments at specific positions with type hints
 2. Wildcard syntax matches using glob patterns (backward compatible)
 3. Prefer bracket syntax for new commands (clear intent)
@@ -172,15 +177,15 @@ Matching rules:
 
 ### Parameter Type Reference
 
-| Type | Example | LLM Guidance | Validation |
-|------|---------|--------------|-----------|
-| `<string>` | `<string>` | "generic text" | None (accept any text) |
-| `<string:hint>` | `<string:api key>` | "api key" | None (hint only) |
-| `<number>` | `<number>` | "numeric value" | Must parse as int/float |
-| `<path>` | `<path:output file>` | "output file" | Optional: check if valid path |
-| `<url>` | `<url:endpoint>` | "endpoint" | Optional: validate URL format |
-| `<json>` | `<json:payload>` | "JSON data" | Optional: validate JSON syntax |
-| `<regex>` | `<regex:pattern>` | "regex pattern" | Optional: validate regex syntax |
+| Type            | Example              | LLM Guidance    | Validation                      |
+| --------------- | -------------------- | --------------- | ------------------------------- |
+| `<string>`      | `<string>`           | "generic text"  | None (accept any text)          |
+| `<string:hint>` | `<string:api key>`   | "api key"       | None (hint only)                |
+| `<number>`      | `<number>`           | "numeric value" | Must parse as int/float         |
+| `<path>`        | `<path:output file>` | "output file"   | Optional: check if valid path   |
+| `<url>`         | `<url:endpoint>`     | "endpoint"      | Optional: validate URL format   |
+| `<json>`        | `<json:payload>`     | "JSON data"     | Optional: validate JSON syntax  |
+| `<regex>`       | `<regex:pattern>`    | "regex pattern" | Optional: validate regex syntax |
 
 ### Implementation Notes
 
@@ -208,6 +213,7 @@ Matching rules:
 ### Example Migration Path
 
 **Phase 1: Current (Wildcard-based)**
+
 ```yaml
 available_commands:
   - command: "cat *"
@@ -216,14 +222,16 @@ available_commands:
 ```
 
 **Phase 2: Gradual Adoption**
+
 ```yaml
 available_commands:
-  - command: "cat <path:file to read>"  # Migrated
-  - command: "grep <regex> <path>"      # Migrated
-  - command: "curl *"                   # Still using wildcard
+  - command: "cat <path:file to read>" # Migrated
+  - command: "grep <regex> <path>" # Migrated
+  - command: "curl *" # Still using wildcard
 ```
 
 **Phase 3: Full Adoption (Future)**
+
 ```yaml
 available_commands:
   - command: "cat <path:file to read>"
@@ -248,18 +256,18 @@ available_commands:
 #### Technical Risks
 
 - **Regex Complexity**: Parser complexity increases with new syntax
-  - *Mitigation*: Start with simple bracket extraction, handle edge cases incrementally
+  - _Mitigation_: Start with simple bracket extraction, handle edge cases incrementally
 - **Backward Compatibility**: Subtle regex changes could break wildcard matching
-  - *Mitigation*: Comprehensive test suite for both syntaxes, regression testing
+  - _Mitigation_: Comprehensive test suite for both syntaxes, regression testing
 - **Performance**: More complex parsing for each command validation
-  - *Mitigation*: Minimal overhead (parse once per config load, not per command execution)
+  - _Mitigation_: Minimal overhead (parse once per config load, not per command execution)
 
 #### User Adoption Risks
 
 - **Migration Burden**: Users must learn new syntax (gradual, not required)
-  - *Mitigation*: Documentation, examples, migration guide
+  - _Mitigation_: Documentation, examples, migration guide
 - **Syntax Confusion**: Users may mix syntaxes incorrectly
-  - *Mitigation*: Clear error messages, configuration validation
+  - _Mitigation_: Clear error messages, configuration validation
 
 ### Human Review
 
@@ -274,7 +282,7 @@ available_commands:
 
 ### Feedback Log
 
-*Completed as of November 13, 2025*
+_Completed as of November 13, 2025_
 
 - **Implementation date**: November 13, 2025
 - **Status**: Implemented and tested (Option 3 - Hybrid Support)

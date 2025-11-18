@@ -127,7 +127,7 @@ class TestExecuteWithDynamicCommands:
 
     @patch("cllm.agent.litellm.completion")
     def test_handles_max_commands_limit(self, mock_completion):
-        """Should stop after max commands reached."""
+        """Should gracefully handle max commands limit by making final synthesis call."""
         # Mock LLM always requesting more commands
         tool_call_response = MagicMock()
         tool_call_response.choices = [
@@ -146,23 +146,45 @@ class TestExecuteWithDynamicCommands:
                                 )
                             ),
                         )
-                    ]
+                    ],
+                    model_dump=MagicMock(
+                        return_value={"role": "assistant", "content": ""}
+                    ),
                 ),
             )
         ]
 
-        # Return tool_call_response indefinitely
-        mock_completion.return_value = tool_call_response
+        # Mock final synthesis response
+        final_response = MagicMock()
+        final_response.choices = [
+            MagicMock(
+                finish_reason="stop",
+                message=MagicMock(
+                    content="Final synthesis response",
+                    model_dump=MagicMock(
+                        return_value={
+                            "role": "assistant",
+                            "content": "Final synthesis response",
+                        }
+                    ),
+                ),
+            )
+        ]
+
+        # Return tool_call_response for first 3 calls, then final_response for synthesis
+        mock_completion.side_effect = [tool_call_response] * 3 + [final_response]
 
         config = {
             "model": "gpt-4",
             "dynamic_commands": {"allow": ["echo*"], "max_commands": 3},
         }
 
-        with pytest.raises(AgentExecutionError) as exc_info:
-            execute_with_dynamic_commands("Keep echoing", config)
+        result = execute_with_dynamic_commands("Keep echoing", config)
 
-        assert "maximum" in str(exc_info.value).lower()
+        # Should return the final synthesis response instead of raising error
+        assert result == "Final synthesis response"
+        # Should have called completion 4 times (3 tool calls + 1 final synthesis)
+        assert mock_completion.call_count == 4
 
     @patch("cllm.agent.litellm.completion")
     def test_handles_immediate_response(self, mock_completion):

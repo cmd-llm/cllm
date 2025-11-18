@@ -366,13 +366,13 @@ class TestMatchesBracketCommand:
     def test_matches_command_with_hint(self):
         """Should match bracket commands with hints."""
         parsed = parse_command_definition("cat <path:file to read>")
-        assert matches_bracket_command("cat README.md", "cat <path:file to read>", parsed)
+        assert matches_bracket_command(
+            "cat README.md", "cat <path:file to read>", parsed
+        )
 
     def test_matches_multiple_parameters(self):
         """Should match commands with multiple parameters."""
-        parsed = parse_command_definition(
-            "curl -X <string:http method> <url:endpoint>"
-        )
+        parsed = parse_command_definition("curl -X <string:http method> <url:endpoint>")
         assert matches_bracket_command(
             "curl -X POST https://api.example.com",
             "curl -X <string:http method> <url:endpoint>",
@@ -442,7 +442,10 @@ class TestBracketSyntaxIntegration:
             "dynamic_commands": {
                 "available_commands": [
                     {"command": "cat <path:file to read>", "description": "New syntax"},
-                    {"command": "ls*", "description": "Old syntax"},  # No space before *
+                    {
+                        "command": "ls*",
+                        "description": "Old syntax",
+                    },  # No space before *
                 ]
             }
         }

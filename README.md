@@ -980,14 +980,14 @@ dynamic_commands:
 
 **Supported Parameter Types:**
 
-| Type | Format | Example | LLM Guidance |
-|------|--------|---------|--------------|
-| String | `<string>` or `<string:hint>` | `<string:username>` | Generic text or specific hint |
-| Number | `<number>` | `<number>` | Numeric value (int or float) |
-| Path | `<path>` or `<path:hint>` | `<path:input file>` | File or directory path |
-| URL | `<url>` or `<url:hint>` | `<url:endpoint>` | HTTP/HTTPS URL |
-| JSON | `<json>` or `<json:hint>` | `<json:request body>` | JSON data structure |
-| Regex | `<regex>` or `<regex:hint>` | `<regex:pattern>` | Regular expression |
+| Type   | Format                        | Example               | LLM Guidance                  |
+| ------ | ----------------------------- | --------------------- | ----------------------------- |
+| String | `<string>` or `<string:hint>` | `<string:username>`   | Generic text or specific hint |
+| Number | `<number>`                    | `<number>`            | Numeric value (int or float)  |
+| Path   | `<path>` or `<path:hint>`     | `<path:input file>`   | File or directory path        |
+| URL    | `<url>` or `<url:hint>`       | `<url:endpoint>`      | HTTP/HTTPS URL                |
+| JSON   | `<json>` or `<json:hint>`     | `<json:request body>` | JSON data structure           |
+| Regex  | `<regex>` or `<regex:hint>`   | `<regex:pattern>`     | Regular expression            |
 
 **Benefits of Bracket Syntax:**
 
@@ -1340,35 +1340,35 @@ cllm init --list-templates
 
 ### Key Options
 
-| Option                     | Description                                  |
-| -------------------------- | -------------------------------------------- |
-| `--model MODEL`            | Specify LLM model (default: gpt-3.5-turbo)   |
-| `--list-models`            | List all available models across providers   |
-| `--stream`                 | Stream response in real-time                 |
-| `--temperature FLOAT`      | Control randomness (0.0-2.0)                 |
-| `--max-tokens INT`         | Maximum response length                      |
-| `--system TEXT`            | Override system prompt (inline text)         |
-| `--system-file PATH`       | Override system prompt (load from file)      |
-| `--conversation ID`        | Continue/create multi-turn conversation      |
-| `--list-conversations`     | List all saved conversations                 |
-| `--show-conversation ID`   | Display conversation history                 |
-| `--delete-conversation ID` | Delete a conversation                        |
-| `--config NAME`            | Load named Cllmfile configuration            |
-| `--show-config`            | Display effective configuration              |
-| `--json-schema FILE/URL`   | Enforce JSON schema for structured output    |
-| `--validate-schema`        | Validate schema without making API call      |
-| `--exec COMMAND`           | Execute command and inject output as context |
-| `--no-context-exec`        | Disable context commands from config         |
-| `--var KEY=VALUE`          | Set template variable (repeatable)           |
-| `--allow-commands`         | Enable LLM-driven dynamic command execution  |
-| `--command-allow PATTERN`  | Allowlist commands (wildcards supported)     |
-| `--command-deny PATTERN`   | Denylist commands (wildcards supported)      |
-| `--debug`                  | Enable debug mode (⚠️ logs API keys)         |
-| `--json-logs`              | Enable structured JSON logging               |
-| `--log-file PATH`          | Write debug output to file                   |
-| `-v`, `-vv`, `-vvv`        | Set verbosity level (1, 2, or 3)             |
+| Option                     | Description                                      |
+| -------------------------- | ------------------------------------------------ |
+| `--model MODEL`            | Specify LLM model (default: gpt-3.5-turbo)       |
+| `--list-models`            | List all available models across providers       |
+| `--stream`                 | Stream response in real-time                     |
+| `--temperature FLOAT`      | Control randomness (0.0-2.0)                     |
+| `--max-tokens INT`         | Maximum response length                          |
+| `--system TEXT`            | Override system prompt (inline text)             |
+| `--system-file PATH`       | Override system prompt (load from file)          |
+| `--conversation ID`        | Continue/create multi-turn conversation          |
+| `--list-conversations`     | List all saved conversations                     |
+| `--show-conversation ID`   | Display conversation history                     |
+| `--delete-conversation ID` | Delete a conversation                            |
+| `--config NAME`            | Load named Cllmfile configuration                |
+| `--show-config`            | Display effective configuration                  |
+| `--json-schema FILE/URL`   | Enforce JSON schema for structured output        |
+| `--validate-schema`        | Validate schema without making API call          |
+| `--exec COMMAND`           | Execute command and inject output as context     |
+| `--no-context-exec`        | Disable context commands from config             |
+| `--var KEY=VALUE`          | Set template variable (repeatable)               |
+| `--allow-commands`         | Enable LLM-driven dynamic command execution      |
+| `--command-allow PATTERN`  | Allowlist commands (wildcards supported)         |
+| `--command-deny PATTERN`   | Denylist commands (wildcards supported)          |
+| `--debug`                  | Enable debug mode (⚠️ logs API keys)             |
+| `--json-logs`              | Enable structured JSON logging                   |
+| `--log-file PATH`          | Write debug output to file                       |
+| `-v`, `-vv`, `-vvv`        | Set verbosity level (1, 2, or 3)                 |
 | `--verbose`                | Increase verbosity level (long form, repeatable) |
-| `--help`                   | Show help message                            |
+| `--help`                   | Show help message                                |
 
 ## Providers & Models
 

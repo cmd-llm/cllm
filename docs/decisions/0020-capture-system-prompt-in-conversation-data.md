@@ -293,22 +293,26 @@ AI agents should adapt implementation details while maintaining core principles:
 #### Actual Outcomes
 
 ✅ **System prompt capture implemented exactly as specified**
+
 - System messages are stored as first element in `conversation.messages` array with `{"role": "system", "content": "..."}` format
 - Storage format matches ADR specification precisely (verified via JSON inspection)
 - Implementation in `src/cllm/conversation.py:67-97` (added `has_system_message()` and `set_system_message()` methods)
 - ConversationManager updated in `src/cllm/conversation.py:288-327` (added `system_message` parameter to `create()`)
 
 ✅ **CLI integration successful**
+
 - New conversations capture `default_system_message` from Cllmfile.yml automatically (src/cllm/cli.py:1055-1061)
 - Runtime injection for backward compatibility implemented (src/cllm/cli.py:1069-1075)
 - System prompt passed from config during conversation creation
 
 ✅ **Backward compatibility fully maintained**
+
 - Old conversations without system messages continue to work without modification
 - Runtime injection provides system message for old conversations without persisting it
 - No breaking changes to existing conversation files
 
 ✅ **Complete test coverage achieved**
+
 - **19 tests passed** (14 unit + 5 integration)
 - All ADR confirmation criteria validated through tests
 - Test coverage: 93% for conversation.py module
@@ -374,26 +378,31 @@ AI agents should adapt implementation details while maintaining core principles:
 **Implementation Validation Criteria:**
 
 ✅ **Unit Tests** - Verify system prompt is stored as first message
+
 - 14 unit tests implemented and passing
 - Covers creation, persistence, loading, duplication prevention
 - Tests: `TestSystemMessageCapture` class in tests/test_conversation.py:628-815
 
 ✅ **Integration Tests** - Confirm conversations with system prompts work end-to-end
+
 - 5 integration tests implemented and passing
 - Covers CLI creation, continuation, backward compatibility
 - Tests: `TestSystemMessageInConversations` class in tests/test_cli.py:1304-1611
 
 ✅ **Backward Compatibility Tests** - Ensure existing conversations continue to function
+
 - Explicit test for old conversations without system messages
 - Verified runtime injection without file modification
 - Test: `test_backward_compatibility_conversation_without_system_message`
 
 ✅ **Manual Testing** - Storage format verified
+
 - Created test conversations with various configurations
 - JSON structure matches ADR specification exactly
 - System message correctly appears as first element with role="system"
 
 ✅ **Code Review** - System prompt inserted once, never duplicated
+
 - Verified in `ConversationManager.create()` - only called during creation
 - Verified in CLI - `has_system_message()` check prevents duplication
 - Multiple turn test confirms no duplication: `test_system_message_not_duplicated_on_multiple_turns`
@@ -401,22 +410,27 @@ AI agents should adapt implementation details while maintaining core principles:
 **Risk Assessment Results:**
 
 ✅ **Technical Risk 1**: Breaking existing conversations
+
 - **Status**: Mitigated successfully
 - **Evidence**: Backward compatibility tests pass; old conversations work unchanged
 
 ✅ **Technical Risk 2**: System prompt duplication
+
 - **Status**: Mitigated successfully
 - **Evidence**: Duplication prevention test passes; `has_system_message()` check prevents duplicates
 
 ✅ **Technical Risk 3**: Configuration changes mid-conversation
+
 - **Status**: N/A (by design)
 - **Evidence**: System prompt frozen at creation time; not affected by config changes
 
 ✅ **Business Risk 1**: Users confused by system message in history
+
 - **Status**: Acceptable risk; documentation pending
 - **Evidence**: Standard OpenAI format; follows industry conventions
 
 ✅ **Business Risk 2**: Increased storage requirements
+
 - **Status**: As expected; minimal impact
 - **Evidence**: Typical increase < 1KB per conversation; acceptable tradeoff
 
@@ -425,6 +439,7 @@ AI agents should adapt implementation details while maintaining core principles:
 **Implementation Status: ✅ Fully Implemented and Validated**
 
 All ADR objectives have been met:
+
 - Core functionality implemented exactly as specified
 - Storage format matches documented structure
 - Comprehensive test coverage (19/19 tests passing)
@@ -433,6 +448,7 @@ All ADR objectives have been met:
 - Performance impact negligible
 
 The implementation successfully addresses all problems identified in the ADR:
+
 1. ✅ Context preservation - System prompts now captured for all new conversations
 2. ✅ Reproducibility - Conversations contain complete context for reproduction
 3. ✅ Debugging - System prompt visibility improves troubleshooting

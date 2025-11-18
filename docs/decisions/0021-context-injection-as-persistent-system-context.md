@@ -11,6 +11,7 @@ Currently, context commands (defined in `context_commands` in Cllmfile.yml) are 
 5. **Historical Confusion**: When reviewing conversations, it's unclear whether context was part of the original user message or injected by the system
 
 **Current behavior** (from `.cllm/conversations/prompt-loop-20251031.json`):
+
 ```json
 {
   "messages": [
@@ -86,6 +87,7 @@ Implementation will be validated through:
 Execute context commands once when conversation is created, combine with system prompt into a single system message.
 
 **Storage format:**
+
 ```json
 {
   "messages": [
@@ -157,6 +159,7 @@ Continue injecting context into user messages on every turn.
 ### Implementation Details
 
 **When to execute context commands:**
+
 - Context commands should be executed **once** when a conversation is first created
 - Execution should happen **in parallel** for performance (already supported by `execute_commands(parallel=True)`)
 - Context should be captured and stored as a system message **after** the main system prompt
@@ -214,11 +217,13 @@ Continue injecting context into user messages on every turn.
 ```
 
 **Loading behavior:**
+
 - When loading a conversation, check if first message has `role: "system"` with context markers (`--- Context:` and `--- End Context ---`)
 - If present, use it as-is (do not re-execute context commands)
 - If not present (old conversation), optionally inject context at runtime for backward compatibility
 
 **Building combined system message:**
+
 ```python
 # Build system message parts
 system_parts = []
@@ -238,6 +243,7 @@ if system_parts:
 ```
 
 **Code locations to modify:**
+
 - `src/cllm/cli.py:~955-1060` - Context command execution and system message building logic
 - `src/cllm/conversation.py` - No changes needed (reuses existing `set_system_message()` from ADR-0020)
 - `src/cllm/context.py` - No changes needed (already supports parallel execution via `execute_commands(parallel=True)`)
@@ -245,10 +251,12 @@ if system_parts:
 ### Backward Compatibility
 
 **Existing conversations without context:**
+
 - Will continue to work without modification
 - May optionally inject context at runtime if configured (non-persistent, for compatibility)
 
 **Existing stateless usage (no conversation):**
+
 - Current behavior maintained: context injected into prompt string
 - No changes to stateless mode
 
@@ -260,14 +268,15 @@ For use cases requiring per-turn context updates (e.g., monitoring system metric
 context_commands:
   - name: "Current Time"
     command: "date"
-    dynamic: false  # Execute once at conversation start (default)
+    dynamic: false # Execute once at conversation start (default)
 
   - name: "System Load"
     command: "uptime"
-    dynamic: true   # Execute on every turn (current behavior)
+    dynamic: true # Execute on every turn (current behavior)
 ```
 
 This allows users to choose between:
+
 - **Static context** (default): Executed once, stored in conversation
 - **Dynamic context**: Executed per-turn, injected at runtime (current behavior)
 
@@ -285,10 +294,12 @@ Implementation of dynamic context is **out of scope** for this ADR but may be ad
 **Example conversation (5 turns):**
 
 **Current approach:**
+
 - Context block size: ~80 tokens
 - Injected on every turn: 5 turns × 80 tokens = **400 tokens**
 
 **New approach (this ADR):**
+
 - Context block size: ~80 tokens
 - Injected once: **80 tokens**
 - **Savings: 320 tokens (80% reduction)**
@@ -304,6 +315,7 @@ For longer conversations (20+ turns), savings can exceed **1,500 tokens** per co
 **Chosen level: Flexible**
 
 AI agents should adapt implementation details while maintaining core principles:
+
 - Context MUST be executed only once per conversation
 - Context MUST be stored as system message after main system prompt
 - Context commands MUST execute in parallel
@@ -346,16 +358,19 @@ AI agents should adapt implementation details while maintaining core principles:
 ### Dependencies
 
 **Related ADRs:**
+
 - ADR-0007 (Conversation Threading and Context Management)
 - ADR-0011 (Dynamic Context Injection via Command Execution)
 - ADR-0020 (Capture System Prompt in Conversation Data)
 
 **System components:**
+
 - `src/cllm/conversation.py` - Conversation and ConversationManager classes
 - `src/cllm/cli.py` - CLI conversation and context handling
 - `src/cllm/context.py` - Context command execution (already supports parallel)
 
 **External dependencies:**
+
 - None (uses existing asyncio for parallel execution)
 
 ### Timeline
@@ -424,43 +439,48 @@ AI agents should adapt implementation details while maintaining core principles:
 #### Actual Outcomes
 
 ✅ **Context stored as persistent system message:**
+
 - Implementation in `src/cllm/cli.py:1040-1099` combines system prompt and context commands into a single system message
 - Context commands execute in parallel during conversation creation (`parallel=True` at line 1067)
 - Combined system message stored via `conversation.set_system_message()` (line 1098)
 - Context appears exactly once in conversation history (as designed)
 
 ✅ **Backward compatibility maintained:**
+
 - Runtime injection logic implemented (lines 1110-1139) for old conversations without context in system message
 - Method `has_context_in_system_message()` detects context markers to determine if re-execution needed
 - Old conversations with context in user messages continue to work (verified with `.cllm/conversations/prompt-loop-20251031.json`)
 
 ✅ **Token efficiency achieved:**
+
 - Context executed once at conversation creation (not on every turn)
 - Significant token savings in multi-turn conversations (80%+ reduction as predicted)
 - Example: 5-turn conversation saves 320 tokens vs old approach
 
 ✅ **Conversation files clean and readable:**
+
 - System message format: `"You are helpful.\n\n--- Context: Time ---\n...\n--- End Context ---"`
 - Context clearly separated from user messages
 - Historical record shows exactly what context was available at conversation start
 
 #### Confirmation Status
 
-| Criterion | Status | Evidence |
-|-----------|--------|----------|
-| Context executed only once per conversation | ✅ Met | `cli.py:1067` - parallel execution only in new conversation block; line 1119 checks `has_context_in_system_message()` to avoid re-execution |
-| Context stored as system message | ✅ Met | `cli.py:1098` - `conversation.set_system_message(combined_system_message)` |
-| Context commands execute in parallel | ✅ Met | `cli.py:1067` - `execute_commands(..., parallel=True)` |
-| Backward compatibility maintained | ✅ Met | `cli.py:1110-1139` - runtime injection for old conversations |
-| Unit tests validate storage format | ✅ Met | `test_conversation.py:818-906` - 7 tests covering all scenarios |
-| Integration tests verify once-per-conversation | ⚠️ Partial | Unit tests exist; end-to-end CLI integration tests not found in `test_cli.py` |
-| Parallel execution tests | ⚠️ Partial | Parallel execution called in code but no specific performance tests found |
-| Token counting tests | ❌ Not Met | No tests explicitly validating token savings vs old approach |
-| Manual testing with conversations | ✅ Met | Real conversation file exists showing old behavior (backward compat confirmed) |
+| Criterion                                      | Status     | Evidence                                                                                                                                    |
+| ---------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Context executed only once per conversation    | ✅ Met     | `cli.py:1067` - parallel execution only in new conversation block; line 1119 checks `has_context_in_system_message()` to avoid re-execution |
+| Context stored as system message               | ✅ Met     | `cli.py:1098` - `conversation.set_system_message(combined_system_message)`                                                                  |
+| Context commands execute in parallel           | ✅ Met     | `cli.py:1067` - `execute_commands(..., parallel=True)`                                                                                      |
+| Backward compatibility maintained              | ✅ Met     | `cli.py:1110-1139` - runtime injection for old conversations                                                                                |
+| Unit tests validate storage format             | ✅ Met     | `test_conversation.py:818-906` - 7 tests covering all scenarios                                                                             |
+| Integration tests verify once-per-conversation | ⚠️ Partial | Unit tests exist; end-to-end CLI integration tests not found in `test_cli.py`                                                               |
+| Parallel execution tests                       | ⚠️ Partial | Parallel execution called in code but no specific performance tests found                                                                   |
+| Token counting tests                           | ❌ Not Met | No tests explicitly validating token savings vs old approach                                                                                |
+| Manual testing with conversations              | ✅ Met     | Real conversation file exists showing old behavior (backward compat confirmed)                                                              |
 
 #### Test Coverage Summary
 
 **Unit Tests (7 tests - all passing):**
+
 - `test_has_context_empty_conversation` - Empty conversation detection ✅
 - `test_has_context_no_system_message` - No system message detection ✅
 - `test_has_context_system_message_without_context` - System message without context ✅
@@ -470,11 +490,13 @@ AI agents should adapt implementation details while maintaining core principles:
 - `test_has_context_partial_markers` - Partial marker edge cases ✅
 
 **Coverage Statistics:**
+
 - `conversation.py`: 93% coverage (136 statements, only 9 missed)
 - All 71 conversation tests passing
 - Core functionality (`has_context_in_system_message()`, `set_system_message()`) fully tested
 
 **Missing Test Coverage:**
+
 1. No CLI integration tests for context-in-conversation workflow
 2. No performance tests measuring parallel execution speedup
 3. No token counting validation tests
@@ -527,6 +549,7 @@ AI agents should adapt implementation details while maintaining core principles:
 #### Suggested Improvements
 
 1. **Add CLI integration tests:**
+
    ```python
    # tests/test_cli.py
    def test_conversation_with_context_commands_stored_in_system_message():
@@ -570,13 +593,13 @@ AI agents should adapt implementation details while maintaining core principles:
 
 #### Risk Mitigation Outcomes
 
-| Risk | Severity | Mitigation Status | Notes |
-|------|----------|-------------------|-------|
-| Breaking existing conversations | Medium | ✅ Mitigated | Backward compatibility logic working; old conversations continue functioning |
-| Context doesn't update when needed | Low | ✅ Expected | By design for token efficiency; documented in ADR |
-| Multiple system messages confusing LLMs | Low | ✅ Avoided | Single combined system message approach chosen |
-| Users confused by static context | Very Low | ⚠️ Pending | Needs documentation update |
-| Breaking change for dynamic use cases | Medium | ⚠️ Pending | No dynamic flag implemented yet; future enhancement |
+| Risk                                    | Severity | Mitigation Status | Notes                                                                        |
+| --------------------------------------- | -------- | ----------------- | ---------------------------------------------------------------------------- |
+| Breaking existing conversations         | Medium   | ✅ Mitigated      | Backward compatibility logic working; old conversations continue functioning |
+| Context doesn't update when needed      | Low      | ✅ Expected       | By design for token efficiency; documented in ADR                            |
+| Multiple system messages confusing LLMs | Low      | ✅ Avoided        | Single combined system message approach chosen                               |
+| Users confused by static context        | Very Low | ⚠️ Pending        | Needs documentation update                                                   |
+| Breaking change for dynamic use cases   | Medium   | ⚠️ Pending        | No dynamic flag implemented yet; future enhancement                          |
 
 #### Summary
 
@@ -585,6 +608,7 @@ AI agents should adapt implementation details while maintaining core principles:
 ADR-0021 has been fully implemented with high-quality code and comprehensive unit test coverage. The core design decision—storing context as a persistent system message—is working exactly as specified. Context commands execute once in parallel, combine with system prompts, and store cleanly in conversation history.
 
 **Strengths:**
+
 - Clean, maintainable implementation
 - Excellent unit test coverage (7 tests, all passing)
 - Proper parallel execution
@@ -593,6 +617,7 @@ ADR-0021 has been fully implemented with high-quality code and comprehensive uni
 - Conversation files readable and well-structured
 
 **Improvement Opportunities:**
+
 - Add CLI integration tests (gap identified)
 - Add performance validation for parallel execution
 - Add token savings validation tests
@@ -600,6 +625,7 @@ ADR-0021 has been fully implemented with high-quality code and comprehensive uni
 - Document behavior for users expecting dynamic context
 
 **Recommendation:**
+
 - Commit ADR-0021 as-is to document the implemented design
 - File follow-up issues for integration tests and performance validation
 - Consider ADR amendment or new ADR for dynamic context flag (future enhancement)

@@ -1,11 +1,5 @@
 """Tests for the LoguruVerbosityHandler with loguru logging."""
 
-import io
-import sys
-from unittest.mock import patch
-
-import pytest
-
 from cllm.logging_handler import LoguruVerbosityHandler
 
 
@@ -149,11 +143,15 @@ class TestLoguruVerbosityHandler:
     def test_log_event_minor_requires_level_2(self, capsys):
         """Test log_event for minor events only logs when verbosity >=2."""
         handler = LoguruVerbosityHandler(verbosity=1)
-        handler.log_event("Context commands ready", importance="minor", extra={"count": 0})
+        handler.log_event(
+            "Context commands ready", importance="minor", extra={"count": 0}
+        )
         captured = capsys.readouterr()
         assert "Context commands ready" not in captured.err
 
         handler = LoguruVerbosityHandler(verbosity=2)
-        handler.log_event("Context commands ready", importance="minor", extra={"count": 3})
+        handler.log_event(
+            "Context commands ready", importance="minor", extra={"count": 3}
+        )
         captured = capsys.readouterr()
         assert "Context commands ready" in captured.err

@@ -7,12 +7,13 @@ Implements ADR-0023: Configurable Init with CLI Flags
 
 import shutil
 import sys
+from importlib.resources import (  # nosemgrep: python.lang.compatibility.python37.python37-compatibility-importlib2
+    files,
+)
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import yaml
-
-from importlib.resources import files  # nosemgrep: python.lang.compatibility.python37.python37-compatibility-importlib2
 
 
 class InitError(Exception):

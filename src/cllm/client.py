@@ -314,9 +314,7 @@ class LLMClient:
             metadata["input_tokens"] = response["usage"].get("prompt_tokens")
             metadata["output_tokens"] = response["usage"].get("completion_tokens")
         elif hasattr(response, "usage"):
-            metadata["input_tokens"] = getattr(
-                response.usage, "prompt_tokens", None
-            )
+            metadata["input_tokens"] = getattr(response.usage, "prompt_tokens", None)
             metadata["output_tokens"] = getattr(
                 response.usage, "completion_tokens", None
             )

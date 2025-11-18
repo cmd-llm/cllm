@@ -87,7 +87,9 @@ class Conversation:
             return False
 
         system_content = self.messages[0].get("content", "")
-        return "--- Context:" in system_content and "--- End Context ---" in system_content
+        return (
+            "--- Context:" in system_content and "--- End Context ---" in system_content
+        )
 
     def set_system_message(self, content: str) -> None:
         """

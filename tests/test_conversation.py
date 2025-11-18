@@ -809,7 +809,9 @@ class TestSystemMessageCapture:
 
     def test_none_system_message_not_added(self, manager):
         """Test None system message is not added."""
-        conv = manager.create(conversation_id="test", model="gpt-4", system_message=None)
+        conv = manager.create(
+            conversation_id="test", model="gpt-4", system_message=None
+        )
 
         assert len(conv.messages) == 0
         assert not conv.has_system_message()
@@ -892,7 +894,9 @@ class TestContextInSystemMessage:
         conv1 = Conversation(
             id="test1",
             model="gpt-4",
-            messages=[{"role": "system", "content": "--- Context: Test ---\nNo end marker"}],
+            messages=[
+                {"role": "system", "content": "--- Context: Test ---\nNo end marker"}
+            ],
         )
         assert not conv1.has_context_in_system_message()
 

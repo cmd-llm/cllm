@@ -507,10 +507,10 @@ Implement the `rich` integration while adapting:
 
 ### Feedback Log
 
-*(To be filled after implementation)*
+_(To be filled after implementation)_
 
-- Implementation date: ___
-- Actual outcomes: ___
-- Challenges encountered: ___
-- Lessons learned: ___
-- Suggested improvements: ___
+- Implementation date: \_\_\_
+- Actual outcomes: \_\_\_
+- Challenges encountered: \_\_\_
+- Lessons learned: \_\_\_
+- Suggested improvements: \_\_\_

@@ -329,7 +329,10 @@ class TestDebugging:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
-        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client.return_value = mock_instance
 
         try:
@@ -356,7 +359,10 @@ class TestDebugging:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
-        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client.return_value = mock_instance
 
         try:
@@ -384,7 +390,10 @@ class TestDebugging:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
-                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "test response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -413,7 +422,10 @@ class TestDebugging:
             # Mock the client to avoid actual API calls
             mock_instance = MagicMock()
             mock_instance.complete.return_value = "test response"
-            mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+            mock_instance.complete_with_metadata.return_value = (
+                "test response",
+                {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+            )
             mock_client.return_value = mock_instance
 
             try:
@@ -437,7 +449,10 @@ class TestDebugging:
             # Mock the client to avoid actual API calls
             mock_instance = MagicMock()
             mock_instance.complete.return_value = "test response"
-            mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+            mock_instance.complete_with_metadata.return_value = (
+                "test response",
+                {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+            )
             mock_client.return_value = mock_instance
 
             try:
@@ -461,7 +476,10 @@ class TestDebugging:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
-                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "test response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -485,7 +503,10 @@ class TestDebugging:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
-                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "test response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -585,7 +606,10 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
-        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client.return_value = mock_instance
 
         try:
@@ -609,7 +633,10 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
-        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client.return_value = mock_instance
 
         try:
@@ -634,7 +661,10 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
-        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client.return_value = mock_instance
 
         try:
@@ -840,8 +870,7 @@ class TestVerbosity:
             if call.args and call.args[0] == "Setting resolved"
         ]
         assert any(
-            event.get("setting") == "debug"
-                and event.get("source") == "env:CLLM_DEBUG"
+            event.get("setting") == "debug" and event.get("source") == "env:CLLM_DEBUG"
             for event in setting_events
         )
 
@@ -858,7 +887,10 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
-        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client.return_value = mock_instance
 
         try:
@@ -884,7 +916,10 @@ class TestVerbosity:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
-                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "test response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -910,7 +945,10 @@ class TestVerbosity:
                 # Mock the client to avoid actual API calls
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "test response"
-                mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "test response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -942,7 +980,14 @@ class TestVerbosity:
                         # Mock the client to avoid actual API calls
                         mock_instance = MagicMock()
                         mock_instance.complete.return_value = "test response"
-                        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                        mock_instance.complete_with_metadata.return_value = (
+                            "test response",
+                            {
+                                "input_tokens": 10,
+                                "output_tokens": 20,
+                                "response_object": None,
+                            },
+                        )
                         mock_client.return_value = mock_instance
 
                         try:
@@ -969,7 +1014,10 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
-        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client.return_value = mock_instance
 
         try:
@@ -994,7 +1042,10 @@ class TestVerbosity:
         # Mock the client to avoid actual API calls
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "test response"
-        mock_instance.complete_with_metadata.return_value = ("test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client.return_value = mock_instance
 
         try:
@@ -1020,7 +1071,10 @@ class TestContextInjection:
             # Mock the client to capture what prompt was sent
             mock_instance = MagicMock()
             mock_instance.complete.return_value = "response"
-            mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+            mock_instance.complete_with_metadata.return_value = (
+                "response",
+                {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+            )
             mock_client.return_value = mock_instance
 
             try:
@@ -1059,7 +1113,10 @@ class TestContextInjection:
             # Mock the client
             mock_instance = MagicMock()
             mock_instance.complete.return_value = "response"
-            mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+            mock_instance.complete_with_metadata.return_value = (
+                "response",
+                {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+            )
             mock_client.return_value = mock_instance
 
             try:
@@ -1093,7 +1150,10 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
-                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -1125,7 +1185,10 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
-                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -1156,7 +1219,10 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
-                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -1197,7 +1263,10 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
-                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -1231,7 +1300,10 @@ class TestContextInjection:
                 # Mock the client
                 mock_instance = MagicMock()
                 mock_instance.complete.return_value = "response"
-                mock_instance.complete_with_metadata.return_value = ("response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+                mock_instance.complete_with_metadata.return_value = (
+                    "response",
+                    {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+                )
                 mock_client.return_value = mock_instance
 
                 try:
@@ -1565,7 +1637,10 @@ class TestReadOnlyConversation:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Read-only response"
-        mock_instance.complete_with_metadata.return_value = ("Read-only response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Read-only response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_instance.count_tokens.return_value = 100
         mock_client.return_value = mock_instance
 
@@ -1628,7 +1703,10 @@ class TestReadOnlyConversation:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Response"
-        mock_instance.complete_with_metadata.return_value = ("Response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_instance.count_tokens.return_value = 100
         mock_client.return_value = mock_instance
 
@@ -1687,7 +1765,10 @@ class TestReadOnlyConversation:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "New response"
-        mock_instance.complete_with_metadata.return_value = ("New response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "New response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_instance.count_tokens.return_value = 150
         mock_client.return_value = mock_instance
 
@@ -1786,7 +1867,10 @@ class TestReadOnlyConversation:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Review result"
-        mock_instance.complete_with_metadata.return_value = ("Review result", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Review result",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_instance.count_tokens.return_value = 200
         mock_client.return_value = mock_instance
 
@@ -1850,7 +1934,10 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "I'll help you with that!"
-        mock_instance.complete_with_metadata.return_value = ("I'll help you with that!", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "I'll help you with that!",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_instance.count_tokens.return_value = 50
         mock_client.return_value = mock_instance
 
@@ -1925,7 +2012,10 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Second response"
-        mock_instance.complete_with_metadata.return_value = ("Second response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Second response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_instance.count_tokens.return_value = 100
         mock_client.return_value = mock_instance
 
@@ -1995,7 +2085,10 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Sure thing!"
-        mock_instance.complete_with_metadata.return_value = ("Sure thing!", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Sure thing!",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_instance.count_tokens.return_value = 50
         mock_client.return_value = mock_instance
 
@@ -2050,7 +2143,10 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Response without system message"
-        mock_instance.complete_with_metadata.return_value = ("Response without system message", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Response without system message",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_instance.count_tokens.return_value = 40
         mock_client.return_value = mock_instance
 
@@ -2109,7 +2205,10 @@ class TestSystemMessageInConversations:
         # Mock the client
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Arrr, matey!"
-        mock_instance.complete_with_metadata.return_value = ("Arrr, matey!", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Arrr, matey!",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_instance.count_tokens.return_value = 60
         mock_client.return_value = mock_instance
 
@@ -2157,7 +2256,10 @@ class TestSystemPromptFlags:
         """Test that --system flag overrides default_system_message from config."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
-        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client_class.return_value = mock_instance
 
         # Config has a default_system_message, but --system should override
@@ -2196,7 +2298,10 @@ class TestSystemPromptFlags:
         """Test that --system-file loads system prompt from file."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
-        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client_class.return_value = mock_instance
 
         # Create a temporary system prompt file
@@ -2232,7 +2337,10 @@ class TestSystemPromptFlags:
         """Test that --system-file overrides default_system_message from config."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
-        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client_class.return_value = mock_instance
 
         # Config has a default_system_message
@@ -2274,7 +2382,10 @@ class TestSystemPromptFlags:
         """Test that --system takes precedence over --system-file when both provided."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
-        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client_class.return_value = mock_instance
 
         # Create system prompt file
@@ -2334,7 +2445,10 @@ class TestSystemPromptFlags:
         """Test that --system-file with empty file produces warning."""
         mock_instance = MagicMock()
         mock_instance.complete.return_value = "Test response"
-        mock_instance.complete_with_metadata.return_value = ("Test response", {'input_tokens': 10, 'output_tokens': 20, 'response_object': None})
+        mock_instance.complete_with_metadata.return_value = (
+            "Test response",
+            {"input_tokens": 10, "output_tokens": 20, "response_object": None},
+        )
         mock_client_class.return_value = mock_instance
 
         # Create empty file

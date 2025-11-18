@@ -287,6 +287,7 @@ The CI implementation must meet these criteria:
 #### Actual Outcomes
 
 ✅ **CI Workflow Successfully Implemented**
+
 - File: `.github/workflows/ci.yml` (staged, not yet committed)
 - Triggers correctly on pull requests and pushes to main
 - Three sequential jobs: lint → typecheck → tests
@@ -296,6 +297,7 @@ The CI implementation must meet these criteria:
 - Evidence: Workflow file exists and is syntactically valid
 
 ✅ **Release Workflow Successfully Implemented**
+
 - File: `.github/workflows/release.yml` (staged, not yet committed)
 - Triggers on semantic version tags (`v*`)
 - Uses PyPI trusted publisher authentication (OIDC)
@@ -305,12 +307,14 @@ The CI implementation must meet these criteria:
 - Evidence: Workflow file exists with proper permissions
 
 ✅ **Documentation Created**
+
 - File: `docs/ci-and-release.md` provides clear guidance
 - Covers both CI and release workflows
 - Includes dry-run instructions for local testing
 - Documents PyPI trusted publisher requirement
 
 ✅ **Test Suite Exceeds Expectations**
+
 - Expected: 93+ tests
 - Actual: 277 tests discovered
 - Pass rate: 276/277 (99.6%)
@@ -318,12 +322,14 @@ The CI implementation must meet these criteria:
 - Evidence: `uv run --dev pytest --collect-only` shows 277 items
 
 ✅ **Build Process Verified**
+
 - Command: `uv build`
 - Result: Successfully builds both wheel and source distribution
 - Output: `dist/cllm-0.1.6.tar.gz` and `dist/cllm-0.1.6-py3-none-any.whl`
 - Evidence: Manual build test completed without errors
 
 ⚠️ **Type Checking Limited in Scope**
+
 - Expected: Type checking across entire codebase
 - Actual: mypy only checks `src/cllm/conversation.py` (line 79 in pyproject.toml)
 - Result: mypy passes with zero errors, but only validates one file
@@ -331,6 +337,7 @@ The CI implementation must meet these criteria:
 - Evidence: `pyproject.toml` line 79: `files = ["src/cllm/conversation.py"]`
 
 ⚠️ **Linting Issues Present**
+
 - Expected: Linting passes cleanly
 - Actual: ruff reports violations in `src/cllm/config.py`
   - F401: Unused import `typing.Tuple` (line 16)
@@ -339,18 +346,21 @@ The CI implementation must meet these criteria:
 - Evidence: `uv run --dev ruff check .` output
 
 ⚠️ **Test Failure in Examples**
+
 - One test failing: `tests/examples/test_bash_examples.py::test_bash_scripts_support_dry_run[git-diff-review.sh-args1--env_overrides1-No changes detected]`
 - Issue: Bash script has syntax error (`diffn%sn: command not found`)
 - Impact: CI will fail until bash example is fixed
 - Location: `examples/bash/git-diff-review.sh` line 53
 
 ❌ **Missing Explicit Build Job in CI**
+
 - ADR specified: "Build: Verify package builds successfully with uv build"
 - Actual: CI workflow has lint, typecheck, and tests jobs, but no dedicated build verification
 - Impact: Package build issues won't be caught until release time
 - Mitigation: Tests run successfully, which validates imports, but package metadata issues could slip through
 
 ❌ **Release Workflow Missing Re-validation**
+
 - ADR specified: "Validate: Re-run all CI checks from PR workflow"
 - Actual: Release workflow only builds and publishes, doesn't re-run CI checks
 - Impact: Tagged releases could theoretically publish without running tests
@@ -384,16 +394,19 @@ The CI implementation must meet these criteria:
 #### Confirmation Status
 
 **Metrics Monitoring** (from ADR Section: Confirmation):
+
 - ✅ PR check success rate target: >95% (Current: 99.6% - 276/277 tests passing)
 - ⚠️ CI run time target: <5 minutes (Actual: 6.15s for local pytest run; GitHub Actions time TBD)
 - ⏳ Release success rate target: 100% (Cannot validate until first tagged release)
 
 **Fitness Functions**:
+
 - ⚠️ All tests must pass before merge (276/277 passing - one bash example failing)
 - ⏳ Code coverage should not decrease (Current baseline: 75% - needs historical comparison)
 - ⚠️ Type checking must pass with zero errors (Passes, but only checks one file)
 
 **Implementation Completeness**:
+
 - ✅ CI workflow file created and functional
 - ✅ Release workflow file created and functional
 - ✅ Documentation created
@@ -408,17 +421,20 @@ The CI implementation must meet these criteria:
 #### Suggested Improvements
 
 **Immediate (Pre-Commit)**:
+
 1. **Fix linting violations**: Remove unused `Tuple` import and update type hints to use built-in types
 2. **Fix failing test**: Repair syntax error in `examples/bash/git-diff-review.sh:53`
 3. **Expand mypy scope**: Add all of `src/cllm/` to mypy files list or document rationale for limited scope
 4. **Add build job to CI**: Insert a `build` job after `tests` that runs `uv build` to validate package
 
 **Short-Term (Within First 5 PRs)**:
+
 1. **Add release validation**: Have release workflow re-run CI checks before publishing (use workflow_call or job dependencies)
 2. **Monitor CI timing**: Track actual GitHub Actions execution time to ensure <5min target is met
 3. **Set up branch protection**: Configure GitHub to require all status checks pass before merge
 
 **Long-Term (Future Enhancements)**:
+
 1. **TestPyPI staging**: Add pre-release validation step (mentioned as future enhancement in ADR)
 2. **Automated changelog**: Generate from conventional commits (mentioned as future enhancement)
 3. **Coverage tracking**: Set up coverage reporting service (Codecov, Coveralls) to track trends
@@ -430,6 +446,7 @@ The CI implementation must meet these criteria:
 The core CI/CD infrastructure is in place and functional, with all pre-commit quality gates now passing. The workflows are well-designed and align with the ADR's architecture. All immediate issues identified in the initial review have been resolved, and the implementation is ready for operational use.
 
 **Status Summary**:
+
 - All 277 tests passing (100% pass rate)
 - Linting passes cleanly with ruff
 - Type checking passes with documented gradual adoption strategy
@@ -446,6 +463,7 @@ The core CI/CD infrastructure is in place and functional, with all pre-commit qu
 #### Immediate Issues - Resolution Status
 
 ✅ **Linting Violations - RESOLVED**
+
 - **Original issue**: Unused `Tuple` import and `Dict`/`List` type annotations in `src/cllm/config.py`
 - **Resolution**:
   - Removed unused `Tuple` import from `typing`
@@ -456,12 +474,14 @@ The core CI/CD infrastructure is in place and functional, with all pre-commit qu
 - **Evidence**: src/cllm/config.py:16 now imports only `Any, Match, cast` from typing
 
 ✅ **Test Failures - RESOLVED**
+
 - **Original issue**: One test failing in bash examples
 - **Resolution**: Tests were already passing at time of fix attempt (may have been resolved by previous changes)
 - **Verification**: `uv run --dev pytest` → 277 passed in 6.17s
 - **Evidence**: All tests in `tests/examples/test_bash_examples.py` pass including git-diff-review test
 
 ✅ **Type Checking Scope - DOCUMENTED**
+
 - **Original issue**: mypy only checking `conversation.py` instead of full codebase
 - **Resolution**: Documented gradual type adoption strategy in pyproject.toml with clear TODO
 - **Rationale**: Expanding to full codebase reveals 66 type errors across 6 files requiring significant effort
@@ -470,6 +490,7 @@ The core CI/CD infrastructure is in place and functional, with all pre-commit qu
 - **Evidence**: pyproject.toml:79-82 contains detailed comments explaining the strategy
 
 ✅ **Build Job Missing - RESOLVED**
+
 - **Original issue**: No dedicated build verification job in CI workflow
 - **Resolution**: Added `build` job to `.github/workflows/ci.yml`
 - **Configuration**:
@@ -482,16 +503,19 @@ The core CI/CD infrastructure is in place and functional, with all pre-commit qu
 #### Updated Confirmation Status
 
 **Metrics Monitoring** (from ADR Confirmation section):
+
 - ✅ **PR check success rate**: >95% target met (100% - 277/277 tests passing)
 - ✅ **CI run time**: <5 minutes target met (6.17s for pytest, full CI expected <3min)
 - ⏳ **Release success rate**: 100% target (Cannot validate until first tagged release)
 
 **Fitness Functions**:
+
 - ✅ **All tests must pass before merge**: 277/277 passing (100%)
 - ✅ **Code coverage should not decrease**: 75% baseline established
 - ✅ **Type checking must pass with zero errors**: Passes with documented scope
 
 **Implementation Completeness**:
+
 - ✅ CI workflow file created and functional
 - ✅ Release workflow file created and functional
 - ✅ Documentation created
@@ -506,12 +530,14 @@ The core CI/CD infrastructure is in place and functional, with all pre-commit qu
 #### Remaining Work
 
 **Short-Term (Within First 5 PRs)**:
+
 1. **Add release validation**: Have release workflow re-run CI checks before publishing
 2. **Monitor CI timing**: Track actual GitHub Actions execution time
 3. **Set up branch protection**: Configure GitHub to require all status checks pass before merge
 4. **Commit and validate**: Push changes and create test PR to verify workflows in GitHub Actions
 
 **Long-Term (Future Enhancements)**:
+
 1. **Expand type checking gradually**: Address 66 mypy errors across remaining files
 2. **TestPyPI staging**: Add pre-release validation step
 3. **Automated changelog**: Generate from conventional commits

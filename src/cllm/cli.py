@@ -37,8 +37,8 @@ from .context import (
     parse_context_commands,
 )
 from .conversation import Conversation, ConversationManager
-from .logging_handler import LoguruVerbosityHandler
 from .init import InitError, initialize, list_available_templates
+from .logging_handler import LoguruVerbosityHandler
 from .templates import TemplateError, build_template_context
 from .tools import CommandValidationError
 
@@ -297,12 +297,12 @@ For full provider list: https://docs.litellm.ai/docs/providers
     return parser
 
 
-def _collect_request_parameters(config: Dict[str, Any], kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def _collect_request_parameters(
+    config: Dict[str, Any], kwargs: Dict[str, Any]
+) -> Dict[str, Any]:
     """Build a concise parameter dictionary for logging."""
     params = {
-        k: v
-        for k, v in kwargs.items()
-        if k not in {"raw_response", "response_format"}
+        k: v for k, v in kwargs.items() if k not in {"raw_response", "response_format"}
     }
     for key in ("temperature", "max_tokens"):
         if key in config and key not in params:
@@ -1346,7 +1346,9 @@ def main():
             "Structured schema enabled",
             extra={
                 "type": schema.get("type") if isinstance(schema, dict) else "unknown",
-                "property_count": len(schema_props) if isinstance(schema_props, dict) else 0,
+                "property_count": (
+                    len(schema_props) if isinstance(schema_props, dict) else 0
+                ),
                 "source": schema_source,
             },
         )
@@ -2007,9 +2009,7 @@ def main():
         request_payload = {"model": model, "messages": messages_for_llm}
         if kwargs:
             request_payload["params"] = kwargs
-        verbosity_handler.log_request_payload(
-            _serialize_for_logging(request_payload)
-        )
+        verbosity_handler.log_request_payload(_serialize_for_logging(request_payload))
 
     _log_event(
         verbosity_handler,
@@ -2056,7 +2056,9 @@ def main():
                 verbosity_handler, metadata, complete_response
             )
             _log_response_metadata(
-                verbosity_handler, run_id, metadata.get("response_object") or complete_response
+                verbosity_handler,
+                run_id,
+                metadata.get("response_object") or complete_response,
             )
             _log_event(
                 verbosity_handler,
@@ -2192,9 +2194,7 @@ def main():
                         "Conversation updated",
                         extra={
                             "id": conversation.conversation_id,
-                            "total_tokens": getattr(
-                                conversation, "total_tokens", None
-                            ),
+                            "total_tokens": getattr(conversation, "total_tokens", None),
                         },
                     )
 

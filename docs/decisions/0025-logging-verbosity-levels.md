@@ -2,7 +2,7 @@
 
 ## Context and Problem Statement
 
-Currently, CLLM's debugging support (ADR-0009) provides binary debug modes: either debugging is on (`--debug`) or off. Users cannot easily control the *amount* of detail shown without switching between completely disabled and full debug output. This creates a gap in the user experience:
+Currently, CLLM's debugging support (ADR-0009) provides binary debug modes: either debugging is on (`--debug`) or off. Users cannot easily control the _amount_ of detail shown without switching between completely disabled and full debug output. This creates a gap in the user experience:
 
 - Developers may only want to see token counts and model information
 - Users debugging API issues want API-level details but not full request/response traces
@@ -11,6 +11,7 @@ Currently, CLLM's debugging support (ADR-0009) provides binary debug modes: eith
 The `-v`, `-vv`, `-vvv` pattern is a Unix standard convention for progressive verbosity levels, providing a familiar, intuitive interface for users familiar with tools like `curl -v`, `ssh -vv`, or `rsync -vv`.
 
 **Excellent Developer Experience Goals:**
+
 - **Intuitive**: The `-v` flag is instantly recognizable to any developer
 - **Progressive**: Start simple with `-v`, add detail with `-vv`, go deep with `-vvv` (no cognitive overload)
 - **Predictable**: Output at each level should be self-explanatory without reading documentation
@@ -86,6 +87,7 @@ Remove `--debug` entirely and replace with `-v` / `-vv` / `-vvv`.
 - Bad, because migration burden for existing users
 
 **Example usage:**
+
 ```bash
 cllm -v "Summarize this document"       # Basic info
 cllm -vv "Debug API timeout"            # API details
@@ -104,6 +106,7 @@ Single flag with named level parameter: `--verbose=quiet`, `--verbose=normal`, `
 - Bad, because requires explaining what "normal" means
 
 **Example usage:**
+
 ```bash
 cllm --verbose=quiet "Suppress info"
 cllm --verbose=verbose "Show details"
@@ -124,6 +127,7 @@ Implement new progressive flags while keeping `--debug` for backward compatibili
 - Bad, because more documentation burden (two ways to enable debugging)
 
 **Example usage:**
+
 ```bash
 cllm -v "Basic info"                    # Level 1
 cllm -vv "API details"                  # Level 2
@@ -144,6 +148,7 @@ Use `--verbosity=0` through `--verbosity=3` for different levels.
 - Bad, because harder to remember (is 3 more or less verbose?)
 
 **Example usage:**
+
 ```bash
 cllm --verbosity=0 "Silent"
 cllm --verbosity=1 "Basic info"
@@ -163,6 +168,7 @@ Allow `--debug` to accept optional numeric value: `--debug`, `--debug=2`, `--deb
 - Bad, because helps less than dedicated `-v` flag
 
 **Example usage:**
+
 ```bash
 cllm --debug "Full debug (same as --debug=3)"
 cllm --debug=1 "Basic debug info"
@@ -219,8 +225,9 @@ cllm -vvv --json-logs --log-file out.json "prompt"  # All features combined
 
 ```yaml
 # Cllmfile.yml
-verbosity: 1              # Default: 0 (off)
-                          # 1 = -v, 2 = -vv, 3 = -vvv
+verbosity:
+  1 # Default: 0 (off)
+  # 1 = -v, 2 = -vv, 3 = -vvv
 ```
 
 **Environment Variable Support:**
@@ -241,6 +248,7 @@ verbosity: 1              # Default: 0 (off)
 ### Output Examples
 
 **Level 1 (`-v`):**
+
 ```
 Model: gpt-4
 Tokens: 50 input, 120 output (170 total)
@@ -249,6 +257,7 @@ Latency: 1.23s
 ```
 
 **Level 2 (`-vv`):**
+
 ```
 Model: gpt-4
 Tokens: 50 input, 120 output (170 total)
@@ -262,6 +271,7 @@ Config: Loaded from ~/.cllm/Cllmfile.yml
 ```
 
 **Level 3 (`-vvv`) / `--debug`:**
+
 ```
 [Full request payload showing messages, model, parameters]
 [Full response payload showing choices, tokens, usage]
@@ -475,6 +485,7 @@ The feature has been fully implemented with excellent developer experience:
 **Suggested Improvements:**
 
 Future enhancements could include:
+
 - Extended level 2 output for dynamic commands (currently shows basic info only)
 - `--quiet` / `-q` flag for suppressing non-error output
 - Custom output formatting options for different contexts
